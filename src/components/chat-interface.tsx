@@ -23,6 +23,7 @@ import {
 } from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
+import { shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import type { MyUIMessage } from "@/types/ui-message";
 
 export function ChatInterface({
@@ -124,7 +125,7 @@ export function ChatInterface({
 									),
 								)}
 
-								{status === "submitted" && (
+								{shouldShowLoadingShimmer(status, messages) && (
 									<Message from="assistant">
 										<MessageContent>
 											<Shimmer as="p" className="text-sm">
