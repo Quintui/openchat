@@ -1,6 +1,7 @@
 import { useChat } from "@ai-sdk/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport } from "ai";
 import type * as React from "react";
 import { useCallback } from "react";
 
@@ -15,6 +16,12 @@ import {
 	MessageResponse,
 } from "@/components/ai-elements/message";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import {
+	Reasoning,
+	ReasoningContent,
+	ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
 import type { MyUIMessage } from "@/types/ui-message";
 
@@ -23,27 +30,17 @@ export function ChatInterface({
 	threadId,
 }: {
 	initialMessages: MyUIMessage[];
-	threadId: string | null;
+	threadId: string;
 }) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 
 	const { messages, sendMessage, status } = useChat<MyUIMessage>({
-		onData: ({ type, data }) => {
-			if (type !== "data-new-thread-created") {
-				return;
-			}
-
-			if (window.location.pathname === "/") {
-				// Update the URL without triggering TanStack Router's loader.
-				// The router monkey-patches window.history.replaceState and listens
-				// for changes. Setting _ignoreSubscribers suppresses the notification
-				// so the /c/$threadId loader doesn't fire (messages don't exist yet).
-				router.history._ignoreSubscribers = true;
-				window.history.replaceState({}, "", `/c/${data.threadId}`);
-				router.history._ignoreSubscribers = false;
-			}
-		},
+		id: threadId,
 		messages: initialMessages,
+		onFinish: () => {
+			queryClient.invalidateQueries({ queryKey: ["threads"] });
+		},
 		transport: new DefaultChatTransport({
 			api: "/api/chat",
 			body: {
@@ -52,7 +49,7 @@ export function ChatInterface({
 		}),
 	});
 
-	const isEmptyState: boolean = messages.length === 0;
+	const isEmptyState = messages.length === 0;
 
 	const handleSubmitMessage = useCallback(
 		(message: PromptInputMessage): void => {
@@ -64,8 +61,14 @@ export function ChatInterface({
 			}
 
 			sendMessage(message);
+
+			if (isEmptyState) {
+				router.history._ignoreSubscribers = true;
+				window.history.replaceState({}, "", `/c/${threadId}`);
+				router.history._ignoreSubscribers = false;
+			}
 		},
-		[sendMessage],
+		[sendMessage, threadId, isEmptyState],
 	);
 
 	return (
@@ -94,6 +97,18 @@ export function ChatInterface({
 											<MessageContent>
 												{message.parts.map((part, i) => {
 													switch (part.type) {
+														case "reasoning":
+															return (
+																<Reasoning
+																	key={`${message.id}-${i}`}
+																	isStreaming={part.state === "streaming"}
+																>
+																	<ReasoningTrigger />
+																	<ReasoningContent>
+																		{part.text}
+																	</ReasoningContent>
+																</Reasoning>
+															);
 														case "text":
 															return (
 																<MessageResponse key={`${message.id}-${i}`}>
@@ -107,6 +122,16 @@ export function ChatInterface({
 											</MessageContent>
 										</Message>
 									),
+								)}
+
+								{status === "submitted" && (
+									<Message from="assistant">
+										<MessageContent>
+											<Shimmer as="p" className="text-sm">
+												Thinking...
+											</Shimmer>
+										</MessageContent>
+									</Message>
 								)}
 							</ConversationContent>
 							<ConversationScrollButton />

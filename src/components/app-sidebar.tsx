@@ -1,4 +1,5 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Search, SquarePen } from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
@@ -17,16 +18,12 @@ import {
 	SidebarRail,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { threadsQueryOptions } from "@/server/threads";
 
 type SidebarActionItem = {
 	id: "new-chat" | "search-chats";
 	label: string;
 	icon: React.ComponentType<{ className?: string }>;
-};
-
-type ChatItem = {
-	id: string;
-	title: string;
 };
 
 const SIDEBAR_ACTIONS: ReadonlyArray<SidebarActionItem> = [
@@ -42,18 +39,14 @@ const SIDEBAR_ACTIONS: ReadonlyArray<SidebarActionItem> = [
 	},
 ];
 
-const YOUR_CHATS: ReadonlyArray<ChatItem> = [
-	{ id: "chat-1", title: "Self-recording for language learning" },
-	{ id: "chat-2", title: "Athena Neurology Query Builder" },
-	{ id: "chat-3", title: "Monday planning notes" },
-	{ id: "chat-4", title: "Learning GPT prompts" },
-];
-
 export function AppSidebar(
 	props: React.ComponentProps<typeof Sidebar>,
 ): React.JSX.Element {
 	const navigate = useNavigate();
 	const [searchOpen, setSearchOpen] = useState(false);
+	const { threadId: activeThreadId } = useParams({ strict: false });
+	const { data } = useQuery(threadsQueryOptions);
+	const threads = data?.threads ?? [];
 
 	const handleAction = (actionId: SidebarActionItem["id"]) => {
 		if (actionId === "new-chat") {
@@ -76,40 +69,54 @@ export function AppSidebar(
 					</div>
 				</SidebarHeader>
 
-				<SidebarContent className="pt-1">
-					<SidebarGroup>
-						<SidebarMenu>
-							{SIDEBAR_ACTIONS.map((action: SidebarActionItem) => {
-								const ActionIcon: React.ComponentType<{ className?: string }> =
-									action.icon;
+				<SidebarGroup className="pt-1">
+					<SidebarMenu>
+						{SIDEBAR_ACTIONS.map((action: SidebarActionItem) => {
+							const ActionIcon: React.ComponentType<{ className?: string }> =
+								action.icon;
 
-								return (
-									<SidebarMenuItem key={action.id}>
-										<SidebarMenuButton
-											tooltip={action.label}
-											type="button"
-											aria-label={action.label}
-											onClick={() => handleAction(action.id)}
-										>
-											<ActionIcon className="size-5 shrink-0" />
-											<span>{action.label}</span>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-								);
-							})}
-						</SidebarMenu>
-					</SidebarGroup>
+							return (
+								<SidebarMenuItem key={action.id}>
+									<SidebarMenuButton
+										tooltip={action.label}
+										type="button"
+										aria-label={action.label}
+										onClick={() => handleAction(action.id)}
+									>
+										<ActionIcon className="size-5 shrink-0" />
+										<span>{action.label}</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							);
+						})}
+					</SidebarMenu>
+				</SidebarGroup>
 
-					<SidebarGroup className="mt-4 group-data-[collapsible=icon]:hidden">
+				<SidebarContent>
+					<SidebarGroup className="group-data-[collapsible=icon]:hidden">
 						<SidebarGroupLabel>Your chats</SidebarGroupLabel>
 						<SidebarMenu>
-							{YOUR_CHATS.map((chat: ChatItem) => (
-								<SidebarMenuItem key={chat.id}>
-									<SidebarMenuButton type="button" aria-label={chat.title}>
-										<span>{chat.title}</span>
+							{threads.map((thread) => (
+								<SidebarMenuItem key={thread.id}>
+									<SidebarMenuButton
+										render={
+											<Link
+												to="/c/$threadId"
+												params={{ threadId: thread.id }}
+											/>
+										}
+										isActive={thread.id === activeThreadId}
+										aria-label={thread.title ?? "Untitled chat"}
+									>
+										<span>{thread.title ?? "Untitled chat"}</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
 							))}
+							{threads.length === 0 && (
+								<p className="text-muted-foreground px-2 py-1 text-xs">
+									No chats yet
+								</p>
+							)}
 						</SidebarMenu>
 					</SidebarGroup>
 				</SidebarContent>

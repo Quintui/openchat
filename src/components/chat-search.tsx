@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ComponentProps } from "react";
 
@@ -16,11 +17,14 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { threadsQueryOptions } from "@/server/threads";
 
 export type ChatSearchProps = ComponentProps<typeof Dialog>;
 
 export function ChatSearch({ onOpenChange, ...props }: ChatSearchProps) {
 	const navigate = useNavigate();
+	const { data } = useQuery(threadsQueryOptions);
+	const threads = data?.threads ?? [];
 
 	const handleSelect = (threadId: string) => {
 		onOpenChange?.(false);
@@ -43,7 +47,17 @@ export function ChatSearch({ onOpenChange, ...props }: ChatSearchProps) {
 					/>
 					<CommandList>
 						<CommandEmpty>No chats found.</CommandEmpty>
-						<CommandGroup>{/* TODO: wire up thread data */}</CommandGroup>
+						<CommandGroup>
+							{threads.map((thread) => (
+								<CommandItem
+									key={thread.id}
+									value={thread.title ?? thread.id}
+									onSelect={() => handleSelect(thread.id)}
+								>
+									{thread.title ?? "Untitled chat"}
+								</CommandItem>
+							))}
+						</CommandGroup>
 					</CommandList>
 				</Command>
 			</DialogContent>

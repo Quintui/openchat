@@ -146,6 +146,7 @@ export function ChatPromptComposer({
 
 				<PromptInputBody>
 					<PromptInputTextarea
+						autoFocus
 						className={textareaClassName}
 						placeholder={placeholder}
 					/>

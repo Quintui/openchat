@@ -12,6 +12,7 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { threadsQueryOptions } from "@/server/threads";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 
@@ -20,6 +21,9 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+	loader: ({ context }) => {
+		context.queryClient.ensureQueryData(threadsQueryOptions);
+	},
 	head: () => ({
 		meta: [
 			{
