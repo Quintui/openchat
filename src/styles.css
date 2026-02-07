@@ -8,6 +8,8 @@
 
 @import "@fontsource-variable/geist";
 
+@source "../node_modules/streamdown/dist/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 body {
