@@ -14,6 +14,11 @@ export const Route = createFileRoute("/api/chat")({
         const params = await request.json();
         let threadId = params.threadId;
 
+        console.log(
+          "Received chat request with params:",
+          params.messages.length,
+        );
+
         const stream = createUIMessageStream<MyUIMessage>({
           execute: async ({ writer }) => {
             if (!threadId) {
