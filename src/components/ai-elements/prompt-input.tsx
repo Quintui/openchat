@@ -454,6 +454,8 @@ export const PromptInputActionAddAttachments = ({
 export interface PromptInputMessage {
 	text: string;
 	files: FileUIPart[];
+	modelId?: string;
+	webSearchEnabled?: boolean;
 }
 
 export type PromptInputProps = Omit<
