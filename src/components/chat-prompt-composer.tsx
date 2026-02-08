@@ -17,24 +17,24 @@ import {
 } from "@/components/ai-elements/model-selector";
 import {
 	PromptInput,
-	PromptInputActionAddAttachments,
-	PromptInputActionMenu,
-	PromptInputActionMenuContent,
-	PromptInputActionMenuTrigger,
-	PromptInputAttachment,
-	PromptInputAttachmentPreview,
-	PromptInputAttachmentRemove,
-	PromptInputAttachments,
+	// PromptInputActionAddAttachments,
+	// PromptInputActionMenu,
+	// PromptInputActionMenuContent,
+	// PromptInputActionMenuTrigger,
+	// PromptInputAttachment,
+	// PromptInputAttachmentPreview,
+	// PromptInputAttachmentRemove,
+	// PromptInputAttachments,
 	PromptInputBody,
 	PromptInputButton,
 	PromptInputFooter,
-	PromptInputHeader,
+	// PromptInputHeader,
 	type PromptInputMessage,
 	PromptInputProvider,
 	PromptInputSubmit,
 	PromptInputTextarea,
 	PromptInputTools,
-	usePromptInputAttachments,
+	// usePromptInputAttachments,
 } from "@/components/ai-elements/prompt-input";
 import {
 	DEFAULT_MODEL_ID,
@@ -77,26 +77,26 @@ const ModelItem = memo(function ModelItem({
 	);
 });
 
-function PromptInputAttachmentsHeader(): React.JSX.Element | null {
-	const attachments = usePromptInputAttachments();
-
-	if (attachments.files.length === 0) {
-		return null;
-	}
-
-	return (
-		<PromptInputHeader>
-			<PromptInputAttachments>
-				{(attachment): React.JSX.Element => (
-					<PromptInputAttachment data={attachment} key={attachment.id}>
-						<PromptInputAttachmentPreview />
-						<PromptInputAttachmentRemove />
-					</PromptInputAttachment>
-				)}
-			</PromptInputAttachments>
-		</PromptInputHeader>
-	);
-}
+// function PromptInputAttachmentsHeader(): React.JSX.Element | null {
+// 	const attachments = usePromptInputAttachments();
+//
+// 	if (attachments.files.length === 0) {
+// 		return null;
+// 	}
+//
+// 	return (
+// 		<PromptInputHeader>
+// 			<PromptInputAttachments>
+// 				{(attachment): React.JSX.Element => (
+// 					<PromptInputAttachment data={attachment} key={attachment.id}>
+// 						<PromptInputAttachmentPreview />
+// 						<PromptInputAttachmentRemove />
+// 					</PromptInputAttachment>
+// 				)}
+// 			</PromptInputAttachments>
+// 		</PromptInputHeader>
+// 	);
+// }
 
 export function ChatPromptComposer({
 	className,
@@ -138,11 +138,11 @@ export function ChatPromptComposer({
 		<PromptInputProvider>
 			<PromptInput
 				className={className}
-				globalDrop
-				multiple
+				// globalDrop
+				// multiple
 				onSubmit={handleSubmit}
 			>
-				<PromptInputAttachmentsHeader />
+				{/* <PromptInputAttachmentsHeader /> */}
 
 				<PromptInputBody>
 					<PromptInputTextarea
@@ -154,12 +154,12 @@ export function ChatPromptComposer({
 
 				<PromptInputFooter>
 					<PromptInputTools>
-						<PromptInputActionMenu>
+						{/* <PromptInputActionMenu>
 							<PromptInputActionMenuTrigger />
 							<PromptInputActionMenuContent className="min-w-48 w-auto">
 								<PromptInputActionAddAttachments />
 							</PromptInputActionMenuContent>
-						</PromptInputActionMenu>
+						</PromptInputActionMenu> */}
 
 						<PromptInputButton
 							onClick={handleToggleWebSearch}

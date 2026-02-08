@@ -2,10 +2,9 @@ import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { CheckIcon, CopyIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
+import { GlobeIcon, RefreshCcwIcon } from "lucide-react";
 import type * as React from "react";
-import { useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCallback } from "react";
 import {
   Conversation,
   ConversationContent,
