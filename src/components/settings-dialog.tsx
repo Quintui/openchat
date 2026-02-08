@@ -22,7 +22,6 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WorkingMemory } from "@/config/working-memory";
 import { useTheme } from "@/hooks/use-theme";
 import {
-	getWorkingMemory,
 	updateWorkingMemory,
 	workingMemoryQueryOptions,
 } from "@/server/memory";
@@ -86,13 +85,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent className="sm:max-w-lg p-6 gap-6">
 				<DialogHeader>
-					<DialogTitle>Settings</DialogTitle>
+					<DialogTitle className="text-lg">Settings</DialogTitle>
 				</DialogHeader>
-				<div className="space-y-1">
-					<div className="border-border flex items-center justify-between border-t py-4">
-						<span className="text-sm font-medium">Appearance</span>
+
+				<section className="space-y-3">
+					<h3 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+						Appearance
+					</h3>
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-sm font-medium">Theme</p>
+							<p className="text-muted-foreground text-xs">
+								Choose how the app looks
+							</p>
+						</div>
 						<Select
 							value={theme}
 							onValueChange={(value) => {
@@ -109,18 +117,21 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 							</SelectContent>
 						</Select>
 					</div>
-				</div>
+				</section>
 
 				<Separator />
 
-				<div className="space-y-4">
-					<h3 className="text-sm font-medium">Personalization</h3>
-					<p className="text-muted-foreground text-xs">
-						Information here is shared with the assistant across all
-						conversations.
-					</p>
+				<section className="space-y-5">
+					<div className="space-y-1">
+						<h3 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+							Personalization
+						</h3>
+						<p className="text-muted-foreground text-xs">
+							Shared with the assistant across all conversations.
+						</p>
+					</div>
 
-					<div className="space-y-2">
+					<div className="space-y-1.5">
 						<Label htmlFor="wm-name">Name</Label>
 						<Input
 							id="wm-name"
@@ -130,8 +141,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 						/>
 					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="wm-traits">Traits</Label>
+					<div className="space-y-1.5">
+						<Label htmlFor="wm-traits">Personality traits</Label>
 						<Input
 							id="wm-traits"
 							placeholder="concise, empathetic, curious"
@@ -143,27 +154,27 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 						</p>
 					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="wm-anything">
-							Anything else OpenChat should know
-						</Label>
+					<div className="space-y-1.5">
+						<Label htmlFor="wm-anything">Additional context</Label>
 						<Textarea
 							id="wm-anything"
 							placeholder="Preferences, project context, constraints..."
 							value={anythingElse}
 							onChange={(e) => setAnythingElse(e.target.value)}
-							rows={3}
+							rows={4}
 						/>
 					</div>
+				</section>
 
-					<Button
-						onClick={handleSave}
-						disabled={mutation.isPending}
-						className="w-full"
-					>
-						{mutation.isPending ? "Saving..." : "Save"}
-					</Button>
-				</div>
+				<Separator />
+
+				<Button
+					onClick={handleSave}
+					disabled={mutation.isPending}
+					className="w-full"
+				>
+					{mutation.isPending ? "Saving..." : "Save personalization"}
+				</Button>
 			</DialogContent>
 		</Dialog>
 	);
