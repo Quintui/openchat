@@ -5,6 +5,57 @@ import { mastra } from "@/mastra";
 
 const RESOURCE_ID = "user-id";
 
+const cloneThreadSchema = z.object({
+	sourceThreadId: z.string().min(1, "sourceThreadId is required"),
+	upToMessageId: z.string().optional(),
+});
+
+export const cloneThread = createServerFn({ method: "POST" })
+	.inputValidator(cloneThreadSchema)
+	.handler(async ({ data }) => {
+		const memory = await mastra.getAgent("assistant").getMemory();
+
+		if (!memory) {
+			throw new Error("Memory not available");
+		}
+
+		let messageFilter: { messageIds: string[] } | undefined;
+
+		if (data.upToMessageId) {
+			const response = await memory.recall({
+				resourceId: RESOURCE_ID,
+				threadId: data.sourceThreadId,
+			});
+
+			const allMessages = response?.messages ?? [];
+			const idx = allMessages.findIndex((m) => m.id === data.upToMessageId);
+
+			if (idx !== -1) {
+				const idsUpTo = allMessages
+					.slice(0, idx + 1)
+					.map((m) => m.id)
+					.filter(Boolean) as string[];
+
+				messageFilter = { messageIds: idsUpTo };
+			}
+		}
+
+		const result = await memory.cloneThread({
+			sourceThreadId: data.sourceThreadId,
+			...(messageFilter ? { options: { messageFilter } } : {}),
+		});
+
+		return {
+			thread: {
+				id: result.thread.id,
+				title: result.thread.title ?? null,
+				resourceId: result.thread.resourceId,
+				createdAt: new Date(result.thread.createdAt).toISOString(),
+				updatedAt: new Date(result.thread.updatedAt).toISOString(),
+			} satisfies Thread,
+		};
+	});
+
 export type Thread = {
 	id: string;
 	title: string | null;

@@ -1,8 +1,8 @@
 import { useChat } from "@ai-sdk/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { GlobeIcon, RefreshCcwIcon } from "lucide-react";
+import { GitBranchIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { useCallback } from "react";
@@ -34,7 +34,7 @@ import {
 import { WorkingMemoryUpdate } from "@/components/ai-elements/working-memory-update";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
 import { shouldShowLoadingShimmer } from "@/lib/chat-utils";
-import type { Thread } from "@/server/threads";
+import { cloneThread, type Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
 import { CopyButton } from "./copy-button";
 
@@ -47,6 +47,18 @@ export function ChatInterface({
 }) {
 	const router = useRouter();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+
+	const branchMutation = useMutation({
+		mutationFn: (upToMessageId: string) =>
+			cloneThread({
+				data: { sourceThreadId: threadId, upToMessageId },
+			}),
+		onSuccess: (result) => {
+			queryClient.invalidateQueries({ queryKey: ["threads"] });
+			navigate({ to: "/c/$threadId", params: { threadId: result.thread.id } });
+		},
+	});
 
 	const { messages, sendMessage, status, regenerate } = useChat<MyUIMessage>({
 		id: threadId,
@@ -234,12 +246,32 @@ export function ChatInterface({
 																.join("\n")}
 														/>
 														<MessageAction
+															tooltip="Branch from here"
+															onClick={() => {
+																branchMutation.mutate(message.id);
+															}}
+														>
+															<GitBranchIcon className="size-3" />
+														</MessageAction>
+														<MessageAction
 															tooltip="Regenerate"
 															onClick={() => {
 																regenerate({ messageId: message.id });
 															}}
 														>
 															<RefreshCcwIcon className="size-3" />
+														</MessageAction>
+													</MessageActions>
+												)}
+												{message.role === "user" && (
+													<MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
+														<MessageAction
+															tooltip="Branch from here"
+															onClick={() => {
+																branchMutation.mutate(message.id);
+															}}
+														>
+															<GitBranchIcon className="size-3" />
 														</MessageAction>
 													</MessageActions>
 												)}
