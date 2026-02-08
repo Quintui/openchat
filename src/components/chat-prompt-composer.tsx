@@ -1,7 +1,8 @@
 import type { ChatStatus } from "ai";
 import { CheckIcon, GlobeIcon } from "lucide-react";
 import type * as React from "react";
-import { memo, useCallback, useState } from "react";
+import type { FocusEvent } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
 	ModelSelector,
 	ModelSelectorContent,
@@ -34,14 +35,11 @@ import {
 	PromptInputSubmit,
 	PromptInputTextarea,
 	PromptInputTools,
+	usePromptInputController,
 	// usePromptInputAttachments,
 } from "@/components/ai-elements/prompt-input";
-import {
-	DEFAULT_MODEL_ID,
-	MODEL_GROUPS,
-	MODELS,
-	type ModelOption,
-} from "@/config/models";
+import { MODEL_GROUPS, MODELS, type ModelOption } from "@/config/models";
+import { useDraftInput } from "@/hooks/use-draft-input";
 
 type ChatPromptComposerProps = {
 	className: string;
@@ -98,6 +96,26 @@ const ModelItem = memo(function ModelItem({
 // 	);
 // }
 
+/**
+ * Syncs the PromptInputProvider's internal text state to localStorage (debounced).
+ * Must be rendered inside <PromptInputProvider>.
+ * Does NOT cause parent re-renders — writes are fire-and-forget into storage.
+ */
+function DraftSync({ onTextChange }: { onTextChange: (v: string) => void }) {
+	const { textInput } = usePromptInputController();
+	const prevValueRef = useRef(textInput.value);
+
+	useEffect(() => {
+		// Only sync when value actually changed (skip initial mount value).
+		if (textInput.value !== prevValueRef.current) {
+			prevValueRef.current = textInput.value;
+			onTextChange(textInput.value);
+		}
+	}, [textInput.value, onTextChange]);
+
+	return null;
+}
+
 export function ChatPromptComposer({
 	className,
 	onSubmitMessage,
@@ -105,23 +123,27 @@ export function ChatPromptComposer({
 	status,
 	textareaClassName,
 }: ChatPromptComposerProps): React.JSX.Element {
-	const [selectedModelId, setSelectedModelId] =
-		useState<string>(DEFAULT_MODEL_ID);
+	const draft = useDraftInput();
 	const [isModelSelectorOpen, setModelSelectorOpen] = useState<boolean>(false);
-	const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
+
+	const selectedModelId = draft.modelId;
+	const webSearchEnabled = draft.webSearchEnabled;
 
 	const selectedModel: ModelOption | undefined = MODELS.find(
 		(model: ModelOption): boolean => model.id === selectedModelId,
 	);
 
-	const handleModelSelect = useCallback((id: string): void => {
-		setSelectedModelId(id);
-		setModelSelectorOpen(false);
-	}, []);
+	const handleModelSelect = useCallback(
+		(id: string): void => {
+			draft.setModelId(id);
+			setModelSelectorOpen(false);
+		},
+		[draft.setModelId],
+	);
 
 	const handleToggleWebSearch = useCallback((): void => {
-		setWebSearchEnabled((prev) => !prev);
-	}, []);
+		draft.setWebSearchEnabled(!webSearchEnabled);
+	}, [draft.setWebSearchEnabled, webSearchEnabled]);
 
 	const handleSubmit = useCallback(
 		(message: PromptInputMessage): void => {
@@ -130,12 +152,24 @@ export function ChatPromptComposer({
 				modelId: selectedModelId,
 				webSearchEnabled,
 			});
+			draft.clear();
 		},
-		[onSubmitMessage, selectedModelId, webSearchEnabled],
+		[onSubmitMessage, selectedModelId, webSearchEnabled, draft.clear],
+	);
+
+	const handleTextareaFocus = useCallback(
+		(e: FocusEvent<HTMLTextAreaElement>) => {
+			const el = e.currentTarget;
+			// Move cursor to the end of the restored draft text.
+			el.selectionStart = el.value.length;
+			el.selectionEnd = el.value.length;
+		},
+		[],
 	);
 
 	return (
-		<PromptInputProvider>
+		<PromptInputProvider initialInput={draft.initialText}>
+			<DraftSync onTextChange={draft.setText} />
 			<PromptInput
 				className={className}
 				// globalDrop
@@ -148,6 +182,7 @@ export function ChatPromptComposer({
 					<PromptInputTextarea
 						autoFocus
 						className={textareaClassName}
+						onFocus={handleTextareaFocus}
 						placeholder={placeholder}
 					/>
 				</PromptInputBody>
