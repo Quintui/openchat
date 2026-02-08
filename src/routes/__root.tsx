@@ -23,8 +23,8 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-	loader: ({ context }) => {
-		context.queryClient.ensureQueryData(threadsQueryOptions);
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(threadsQueryOptions);
 	},
 	head: () => ({
 		meta: [

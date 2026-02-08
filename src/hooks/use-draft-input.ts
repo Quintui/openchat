@@ -72,11 +72,13 @@ function getSettingsSnapshot(): SettingsState {
 	return settingsCache;
 }
 
+const SERVER_SETTINGS_SNAPSHOT: SettingsState = {
+	modelId: DEFAULT_DRAFT.modelId,
+	webSearchEnabled: DEFAULT_DRAFT.webSearchEnabled,
+};
+
 function getSettingsServerSnapshot(): SettingsState {
-	return {
-		modelId: DEFAULT_DRAFT.modelId,
-		webSearchEnabled: DEFAULT_DRAFT.webSearchEnabled,
-	};
+	return SERVER_SETTINGS_SNAPSHOT;
 }
 
 // --- Debounced text writer ---

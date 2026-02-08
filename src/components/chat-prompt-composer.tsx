@@ -1,7 +1,6 @@
 import type { ChatStatus } from "ai";
 import { CheckIcon, GlobeIcon } from "lucide-react";
 import type * as React from "react";
-import type { FocusEvent } from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
 	ModelSelector,
@@ -157,15 +156,15 @@ export function ChatPromptComposer({
 		[onSubmitMessage, selectedModelId, webSearchEnabled, draft.clear],
 	);
 
-	const handleTextareaFocus = useCallback(
-		(e: FocusEvent<HTMLTextAreaElement>) => {
-			const el = e.currentTarget;
-			// Move cursor to the end of the restored draft text.
+	const textareaRef = useCallback((el: HTMLTextAreaElement | null) => {
+		if (!el) return;
+		// Defer so React's controlled value reconciliation finishes first.
+		requestAnimationFrame(() => {
+			el.focus();
 			el.selectionStart = el.value.length;
 			el.selectionEnd = el.value.length;
-		},
-		[],
-	);
+		});
+	}, []);
 
 	return (
 		<PromptInputProvider initialInput={draft.initialText}>
@@ -180,9 +179,8 @@ export function ChatPromptComposer({
 
 				<PromptInputBody>
 					<PromptInputTextarea
-						autoFocus
+						ref={textareaRef}
 						className={textareaClassName}
-						onFocus={handleTextareaFocus}
 						placeholder={placeholder}
 					/>
 				</PromptInputBody>
