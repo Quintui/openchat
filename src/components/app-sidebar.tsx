@@ -1,11 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronsUpDown, Search, Settings, SquarePen } from "lucide-react";
+import { ChevronsUpDown, Search, Settings, SquarePen, X } from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
-
 import { ChatSearch } from "@/components/chat-search";
 import { SettingsDialog } from "@/components/settings-dialog";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -20,13 +29,18 @@ import {
 	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
+	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarRail,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { groupByDate } from "@/lib/date-utils";
-import { threadsQueryOptions } from "@/server/threads";
+import {
+	deleteThread,
+	type Thread,
+	threadsQueryOptions,
+} from "@/server/threads";
 
 type SidebarActionItem = {
 	id: "new-chat" | "search-chats";
@@ -51,12 +65,54 @@ export function AppSidebar(
 	props: React.ComponentProps<typeof Sidebar>,
 ): React.JSX.Element {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [searchOpen, setSearchOpen] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [threadToDelete, setThreadToDelete] = useState<Thread | null>(null);
 	const { threadId: activeThreadId } = useParams({ strict: false });
 	const { data } = useQuery(threadsQueryOptions);
 	const threads = data?.threads ?? [];
 	const groupedThreads = groupByDate(threads, (t) => t.updatedAt);
+
+	const deleteThreadMutation = useMutation({
+		mutationFn: (threadId: string) => deleteThread({ data: { threadId } }),
+		onMutate: async (threadId) => {
+			await queryClient.cancelQueries({ queryKey: ["threads"] });
+
+			const previous = queryClient.getQueryData<{ threads: Thread[] }>([
+				"threads",
+			]);
+
+			queryClient.setQueryData<{ threads: Thread[] }>(["threads"], (old) => {
+				if (!old) return { threads: [] };
+				return {
+					threads: old.threads.filter((t) => t.id !== threadId),
+				};
+			});
+
+			return { previous };
+		},
+		onError: (_err, _threadId, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(["threads"], context.previous);
+			}
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ["threads"] });
+		},
+	});
+
+	const handleDeleteConfirm = () => {
+		if (!threadToDelete) return;
+
+		const isActive = threadToDelete.id === activeThreadId;
+		deleteThreadMutation.mutate(threadToDelete.id);
+		setThreadToDelete(null);
+
+		if (isActive) {
+			navigate({ to: "/" });
+		}
+	};
 
 	const handleAction = (actionId: SidebarActionItem["id"]) => {
 		if (actionId === "new-chat") {
@@ -126,6 +182,16 @@ export function AppSidebar(
 											>
 												<span>{thread.title ?? "Untitled chat"}</span>
 											</SidebarMenuButton>
+											<SidebarMenuAction
+												showOnHover
+												aria-label="Delete chat"
+												onClick={(e) => {
+													e.preventDefault();
+													setThreadToDelete(thread);
+												}}
+											>
+												<X className="size-4" />
+											</SidebarMenuAction>
 										</SidebarMenuItem>
 									))}
 								</SidebarMenu>
@@ -183,6 +249,31 @@ export function AppSidebar(
 
 				<SidebarRail />
 			</Sidebar>
+			<AlertDialog
+				open={threadToDelete !== null}
+				onOpenChange={(open) => {
+					if (!open) setThreadToDelete(null);
+				}}
+			>
+				<AlertDialogContent size="sm">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete chat</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will permanently delete this chat and all its messages. This
+							action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							onClick={handleDeleteConfirm}
+						>
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</>
 	);
 }

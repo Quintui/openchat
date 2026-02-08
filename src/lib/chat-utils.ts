@@ -6,8 +6,9 @@ import type { MyUIMessage } from "@/types/ui-message";
  *
  * Covers two cases:
  *  1. status is "submitted" (request sent, no stream open yet)
- *  2. status is "streaming" but the last assistant message has no text parts
- *     with actual content (stream is open, first token hasn't arrived yet)
+ *  2. status is "streaming" but the last assistant message has no text or
+ *     reasoning parts with actual content (stream is open, first token
+ *     hasn't arrived yet)
  */
 export function shouldShowLoadingShimmer(
 	status: ChatStatus,
@@ -19,11 +20,13 @@ export function shouldShowLoadingShimmer(
 		const lastAssistant = findLast(messages, (m) => m.role === "assistant");
 		if (!lastAssistant) return true;
 
-		const hasTextContent = lastAssistant.parts.some(
-			(part) => part.type === "text" && part.text.length > 0,
+		const hasContent = lastAssistant.parts.some(
+			(part) =>
+				(part.type === "text" || part.type === "reasoning") &&
+				part.text.length > 0,
 		);
 
-		return !hasTextContent;
+		return !hasContent;
 	}
 
 	return false;

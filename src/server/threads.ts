@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { mastra } from "@/mastra";
 
 const RESOURCE_ID = "user-id";
@@ -44,6 +45,24 @@ export const getThreads = createServerFn({ method: "GET" }).handler(
 		return { threads };
 	},
 );
+
+const deleteThreadSchema = z.object({
+	threadId: z.string().min(1, "threadId is required"),
+});
+
+export const deleteThread = createServerFn({ method: "POST" })
+	.inputValidator(deleteThreadSchema)
+	.handler(async ({ data }) => {
+		const memory = await mastra.getAgent("assistant").getMemory();
+
+		if (!memory) {
+			throw new Error("Memory not available");
+		}
+
+		await memory.deleteThread(data.threadId);
+
+		return { success: true };
+	});
 
 export const threadsQueryOptions = queryOptions({
 	queryKey: ["threads"],

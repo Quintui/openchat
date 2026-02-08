@@ -2,9 +2,10 @@ import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
+import { CheckIcon, CopyIcon, RefreshCcwIcon } from "lucide-react";
 import type * as React from "react";
-import { useCallback } from "react";
-
+import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
 	Conversation,
 	ConversationContent,
@@ -12,6 +13,8 @@ import {
 } from "@/components/ai-elements/conversation";
 import {
 	Message,
+	MessageAction,
+	MessageActions,
 	MessageContent,
 	MessageResponse,
 } from "@/components/ai-elements/message";
@@ -26,6 +29,30 @@ import { ChatPromptComposer } from "@/components/chat-prompt-composer";
 import { shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import type { MyUIMessage } from "@/types/ui-message";
 
+function CopyButton({ text }: { text: string }) {
+	const [copied, setCopied] = useState(false);
+	const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+	return (
+		<MessageAction
+			tooltip="Copy"
+			onClick={() => {
+				navigator.clipboard.writeText(text);
+				toast.success("Copied to clipboard");
+				setCopied(true);
+				if (timeoutRef.current) clearTimeout(timeoutRef.current);
+				timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+			}}
+		>
+			{copied ? (
+				<CheckIcon className="size-3" />
+			) : (
+				<CopyIcon className="size-3" />
+			)}
+		</MessageAction>
+	);
+}
+
 export function ChatInterface({
 	initialMessages = [],
 	threadId,
@@ -36,19 +63,20 @@ export function ChatInterface({
 	const router = useRouter();
 	const queryClient = useQueryClient();
 
-	const { messages, sendMessage, status } = useChat<MyUIMessage>({
-		id: threadId,
-		messages: initialMessages,
-		onFinish: () => {
-			queryClient.invalidateQueries({ queryKey: ["threads"] });
-		},
-		transport: new DefaultChatTransport({
-			api: "/api/chat",
-			body: {
-				threadId,
+	const { messages, sendMessage, status, regenerate, setMessages } =
+		useChat<MyUIMessage>({
+			id: threadId,
+			messages: initialMessages,
+			onFinish: () => {
+				queryClient.invalidateQueries({ queryKey: ["threads"] });
 			},
-		}),
-	});
+			transport: new DefaultChatTransport({
+				api: "/api/chat",
+				body: {
+					threadId,
+				},
+			}),
+		});
 
 	const isEmptyState = messages.length === 0;
 
@@ -61,7 +89,9 @@ export function ChatInterface({
 				return;
 			}
 
-			sendMessage(message);
+			sendMessage(message, {
+				body: { modelId: message.modelId },
+			});
 
 			if (isEmptyState) {
 				router.history._ignoreSubscribers = true;
@@ -121,6 +151,28 @@ export function ChatInterface({
 													}
 												})}
 											</MessageContent>
+											{message.role === "assistant" && (
+												<MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
+													<CopyButton
+														text={message.parts
+															.filter((p) => p.type === "text")
+															.map((p) => p.text)
+															.join("\n")}
+													/>
+													<MessageAction
+														tooltip="Regenerate"
+														onClick={() => {
+															const idx = messages.findIndex(
+																(m) => m.id === message.id,
+															);
+															setMessages(messages.slice(0, idx));
+															regenerate();
+														}}
+													>
+														<RefreshCcwIcon className="size-3" />
+													</MessageAction>
+												</MessageActions>
+											)}
 										</Message>
 									),
 								)}

@@ -12,6 +12,7 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { threadsQueryOptions } from "@/server/threads";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -75,6 +76,7 @@ function RootDocument({ children }: RootDocumentProps): React.JSX.Element {
 							{children}
 						</SidebarInset>
 					</SidebarProvider>
+					<Toaster />
 				</ThemeProvider>
 				<TanStackDevtools
 					config={{
