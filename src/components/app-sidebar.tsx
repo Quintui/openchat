@@ -221,10 +221,10 @@ export function AppSidebar(
 									}
 								>
 									<div className="bg-orange-500 text-white flex size-9 shrink-0 aspect-square items-center justify-center rounded-full text-lg font-medium group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:text-base">
-										KR
+										GU
 									</div>
 									<div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-										<span className="truncate font-medium">Kristian Veter</span>
+										<span className="truncate font-medium">Guest User</span>
 										<span className="text-muted-foreground truncate text-xs">
 											Plus
 										</span>
