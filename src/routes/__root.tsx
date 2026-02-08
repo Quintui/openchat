@@ -12,6 +12,7 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { ThemeProvider } from "@/hooks/use-theme";
 import { threadsQueryOptions } from "@/server/threads";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
@@ -54,20 +55,27 @@ type RootDocumentProps = {
 
 function RootDocument({ children }: RootDocumentProps): React.JSX.Element {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<HeadContent />
 			</head>
 			<body>
-				<SidebarProvider>
-					<AppSidebar />
-					<SidebarInset>
-						<header className="bg-background border-b px-3 py-2 md:hidden">
-							<SidebarTrigger />
-						</header>
-						{children}
-					</SidebarInset>
-				</SidebarProvider>
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="system"
+					enableSystem
+					disableTransitionOnChange
+				>
+					<SidebarProvider>
+						<AppSidebar />
+						<SidebarInset>
+							<header className="bg-background border-b px-3 py-2 md:hidden">
+								<SidebarTrigger />
+							</header>
+							{children}
+						</SidebarInset>
+					</SidebarProvider>
+				</ThemeProvider>
 				<TanStackDevtools
 					config={{
 						position: "bottom-right",

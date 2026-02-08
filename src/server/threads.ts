@@ -38,7 +38,7 @@ export const getThreads = createServerFn({ method: "GET" }).handler(
 			}))
 			.sort(
 				(a, b) =>
-					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+					new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
 			);
 
 		return { threads };

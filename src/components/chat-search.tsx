@@ -16,6 +16,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { groupByDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { threadsQueryOptions } from "@/server/threads";
 
@@ -25,6 +26,7 @@ export function ChatSearch({ onOpenChange, ...props }: ChatSearchProps) {
 	const navigate = useNavigate();
 	const { data } = useQuery(threadsQueryOptions);
 	const threads = data?.threads ?? [];
+	const groupedThreads = groupByDate(threads, (t) => t.updatedAt);
 
 	const handleSelect = (threadId: string) => {
 		onOpenChange?.(false);
@@ -47,17 +49,19 @@ export function ChatSearch({ onOpenChange, ...props }: ChatSearchProps) {
 					/>
 					<CommandList>
 						<CommandEmpty>No chats found.</CommandEmpty>
-						<CommandGroup>
-							{threads.map((thread) => (
-								<CommandItem
-									key={thread.id}
-									value={thread.title ?? thread.id}
-									onSelect={() => handleSelect(thread.id)}
-								>
-									{thread.title ?? "Untitled chat"}
-								</CommandItem>
-							))}
-						</CommandGroup>
+						{groupedThreads.map((group) => (
+							<CommandGroup key={group.label} heading={group.label}>
+								{group.items.map((thread) => (
+									<CommandItem
+										key={thread.id}
+										value={thread.title ?? thread.id}
+										onSelect={() => handleSelect(thread.id)}
+									>
+										{thread.title ?? "Untitled chat"}
+									</CommandItem>
+								))}
+							</CommandGroup>
+						))}
 					</CommandList>
 				</Command>
 			</DialogContent>
