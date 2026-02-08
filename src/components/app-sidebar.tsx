@@ -4,6 +4,7 @@ import { ChevronsUpDown, Search, Settings, SquarePen, X } from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
 import { ChatSearch } from "@/components/chat-search";
+import { OpenChatLogo } from "@/components/openchat-logo";
 import { SettingsDialog } from "@/components/settings-dialog";
 import {
 	AlertDialog,
@@ -15,6 +16,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -129,9 +131,7 @@ export function AppSidebar(
 			<Sidebar collapsible="icon" {...props}>
 				<SidebarHeader className="px-3 pt-3 group-data-[collapsible=icon]:px-0">
 					<div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-						<div className="bg-foreground text-background flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold group-data-[collapsible=icon]:size-8">
-							GC
-						</div>
+						<OpenChatLogo className="size-9 shrink-0 rounded-full group-data-[collapsible=icon]:size-8" />
 						<SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
 					</div>
 				</SidebarHeader>
@@ -208,19 +208,19 @@ export function AppSidebar(
 					)}
 				</SidebarContent>
 
-				<SidebarFooter className="border-sidebar-border border-t p-3">
+				<SidebarFooter className="border-sidebar-border border-t p-3 group-data-[collapsible=icon]:px-0">
 					<SidebarMenu>
-						<SidebarMenuItem>
+						<SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
 							<DropdownMenu>
 								<DropdownMenuTrigger
 									render={
 										<SidebarMenuButton
 											size="lg"
-											className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+											className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
 										/>
 									}
 								>
-									<div className="bg-orange-500 text-white flex size-9 items-center justify-center rounded-full text-lg font-medium group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:text-base">
+									<div className="bg-orange-500 text-white flex size-9 shrink-0 aspect-square items-center justify-center rounded-full text-lg font-medium group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:text-base">
 										KR
 									</div>
 									<div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
@@ -229,7 +229,7 @@ export function AppSidebar(
 											Plus
 										</span>
 									</div>
-									<ChevronsUpDown className="ml-auto size-4" />
+									<ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
 								</DropdownMenuTrigger>
 								<DropdownMenuContent
 									className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"

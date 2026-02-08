@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
 import { GlobeIcon, RefreshCcwIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { useCallback } from "react";
 import {
@@ -68,7 +69,6 @@ export function ChatInterface({
 				});
 			}
 			if (dataPart.type === "data-conversation-title") {
-				console.log("Received conversation title:", dataPart.data.title);
 				queryClient.setQueryData<{ threads: Thread[] }>(["threads"], (old) => {
 					if (!old) return old;
 					return {
@@ -86,8 +86,6 @@ export function ChatInterface({
 			},
 		}),
 	});
-
-	console.log("Current messages:", messages);
 
 	const isEmptyState = messages.length === 0;
 
@@ -118,133 +116,172 @@ export function ChatInterface({
 
 	return (
 		<div className="flex h-full flex-1 flex-col">
-			{isEmptyState ? (
-				<div className="mx-auto flex w-full max-w-[70ch] flex-1 flex-col items-center justify-center gap-14 px-6 pb-24">
-					<h1 className="text-foreground text-5xl font-medium tracking-tight">
-						What can I help with?
-					</h1>
-					<ChatPromptComposer
-						className="w-full"
-						onSubmitMessage={handleSubmitMessage}
-						placeholder="Ask anything"
-						status={status}
-						textareaClassName="min-h-16 text-lg"
-					/>
-				</div>
-			) : (
-				<div className="flex min-h-0 flex-1 flex-col">
-					<Conversation className="min-h-0 flex-1">
-						<ConversationContent className="mx-auto w-full max-w-[70ch] gap-8 px-6 py-6">
-							{messages.map(
-								(message): React.JSX.Element => (
-									<Message from={message.role} key={message.id}>
-										<MessageContent>
-											{message.parts.map((part, i) => {
-												switch (part.type) {
-													case "reasoning":
-														return (
-															<Reasoning
-																key={`${message.id}-${i}`}
-																isStreaming={part.state === "streaming"}
-															>
-																<ReasoningTrigger />
-																<ReasoningContent>{part.text}</ReasoningContent>
-															</Reasoning>
-														);
-													case "text":
-														return (
-															<MessageResponse key={`${message.id}-${i}`}>
-																{part.text}
-															</MessageResponse>
-														);
-													case "tool-webSearch":
-														return part.state === "output-available" ? (
-															<Sources key={`${message.id}-${i}`}>
-																<SourcesTrigger count={part.output.length} />
-																<SourcesContent>
-																	{part.output.map((source) => (
-																		<Source
-																			key={source.url}
-																			href={source.url}
-																			title={source.title ?? source.url}
-																		/>
-																	))}
-																</SourcesContent>
-															</Sources>
-														) : (
-															<div
-																key={`${message.id}-${i}`}
-																className="flex items-center gap-1.5"
-															>
-																<GlobeIcon className="text-muted-foreground size-3.5" />
-																<Shimmer as="p" className="text-sm">
-																	{`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
-																</Shimmer>
-															</div>
-														);
-													case "tool-updateWorkingMemory":
-														return (
-															<WorkingMemoryUpdate
-																key={`${message.id}-${i}`}
-																state={part.state}
-																input={
-																	part.state !== "input-streaming"
-																		? part.input
-																		: undefined
-																}
-															/>
-														);
-													default:
-														return null;
-												}
-											})}
-										</MessageContent>
-										{message.role === "assistant" && (
-											<MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
-												<CopyButton
-													text={message.parts
-														.filter((p) => p.type === "text")
-														.map((p) => p.text)
-														.join("\n")}
-												/>
-												<MessageAction
-													tooltip="Regenerate"
-													onClick={() => {
-														regenerate({ messageId: message.id });
-													}}
-												>
-													<RefreshCcwIcon className="size-3" />
-												</MessageAction>
-											</MessageActions>
-										)}
-									</Message>
-								),
-							)}
-
-							{shouldShowLoadingShimmer(status, messages) && (
-								<Message from="assistant">
-									<MessageContent>
-										<Shimmer as="p" className="text-sm">
-											Thinking...
-										</Shimmer>
-									</MessageContent>
-								</Message>
-							)}
-						</ConversationContent>
-						<ConversationScrollButton />
-					</Conversation>
-
-					<div className="mx-auto w-full max-w-[70ch] px-6 pb-8 pt-4">
+			<AnimatePresence mode="wait" initial={false}>
+				{isEmptyState ? (
+					<motion.div
+						key="empty"
+						initial={{ opacity: 0, scale: 0.98 }}
+						animate={{ opacity: 1, scale: 1 }}
+						exit={{ opacity: 0, scale: 0.98 }}
+						transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+						className="mx-auto flex w-full max-w-[70ch] flex-1 flex-col items-center justify-center gap-14 px-6 pb-24"
+					>
+						<h1 className="text-foreground text-5xl font-medium tracking-tight">
+							What can I help with?
+						</h1>
 						<ChatPromptComposer
 							className="w-full"
 							onSubmitMessage={handleSubmitMessage}
-							placeholder="Say something..."
+							placeholder="Ask anything"
 							status={status}
-							textareaClassName="min-h-14"
+							textareaClassName="min-h-16 text-lg"
 						/>
-					</div>
-				</div>
-			)}
+					</motion.div>
+				) : (
+					<motion.div
+						key="conversation"
+						initial={{ opacity: 0, y: 8 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+						className="flex min-h-0 flex-1 flex-col"
+					>
+						<Conversation className="min-h-0 flex-1">
+							<ConversationContent className="mx-auto w-full max-w-[70ch] gap-8 px-6 py-6">
+								{messages.map(
+									(message, index): React.JSX.Element => (
+										<motion.div
+											key={message.id}
+											initial={{ opacity: 0, y: 6 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.2,
+												delay: Math.min(index * 0.04, 0.2),
+												ease: [0.25, 0.1, 0.25, 1],
+											}}
+										>
+											<Message from={message.role}>
+												<MessageContent>
+													{message.parts.map((part, i) => {
+														switch (part.type) {
+															case "reasoning":
+																return (
+																	<Reasoning
+																		key={`${message.id}-${i}`}
+																		isStreaming={part.state === "streaming"}
+																	>
+																		<ReasoningTrigger />
+																		<ReasoningContent>
+																			{part.text}
+																		</ReasoningContent>
+																	</Reasoning>
+																);
+															case "text":
+																return (
+																	<MessageResponse key={`${message.id}-${i}`}>
+																		{part.text}
+																	</MessageResponse>
+																);
+															case "tool-webSearch":
+																return part.state === "output-available" ? (
+																	<Sources key={`${message.id}-${i}`}>
+																		<SourcesTrigger
+																			count={part.output.length}
+																		/>
+																		<SourcesContent>
+																			{part.output.map((source) => (
+																				<Source
+																					key={source.url}
+																					href={source.url}
+																					title={source.title ?? source.url}
+																				/>
+																			))}
+																		</SourcesContent>
+																	</Sources>
+																) : (
+																	<div
+																		key={`${message.id}-${i}`}
+																		className="flex items-center gap-1.5"
+																	>
+																		<GlobeIcon className="text-muted-foreground size-3.5" />
+																		<Shimmer as="p" className="text-sm">
+																			{`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
+																		</Shimmer>
+																	</div>
+																);
+															case "tool-updateWorkingMemory":
+																return (
+																	<WorkingMemoryUpdate
+																		key={`${message.id}-${i}`}
+																		state={part.state}
+																		input={
+																			part.state !== "input-streaming"
+																				? part.input
+																				: undefined
+																		}
+																	/>
+																);
+															default:
+																return null;
+														}
+													})}
+												</MessageContent>
+												{message.role === "assistant" && (
+													<MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
+														<CopyButton
+															text={message.parts
+																.filter((p) => p.type === "text")
+																.map((p) => p.text)
+																.join("\n")}
+														/>
+														<MessageAction
+															tooltip="Regenerate"
+															onClick={() => {
+																regenerate({ messageId: message.id });
+															}}
+														>
+															<RefreshCcwIcon className="size-3" />
+														</MessageAction>
+													</MessageActions>
+												)}
+											</Message>
+										</motion.div>
+									),
+								)}
+
+								{shouldShowLoadingShimmer(status, messages) && (
+									<motion.div
+										initial={{ opacity: 0, y: 4 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{
+											duration: 0.15,
+											ease: [0.25, 0.1, 0.25, 1],
+										}}
+									>
+										<Message from="assistant">
+											<MessageContent>
+												<Shimmer as="p" className="text-sm">
+													Thinking...
+												</Shimmer>
+											</MessageContent>
+										</Message>
+									</motion.div>
+								)}
+							</ConversationContent>
+							<ConversationScrollButton />
+						</Conversation>
+
+						<div className="mx-auto w-full max-w-[70ch] px-6 pb-8 pt-4">
+							<ChatPromptComposer
+								className="w-full"
+								onSubmitMessage={handleSubmitMessage}
+								placeholder="Say something..."
+								status={status}
+								textareaClassName="min-h-14"
+							/>
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
 		</div>
 	);
 }
