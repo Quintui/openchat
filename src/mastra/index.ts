@@ -8,9 +8,10 @@ import {
   SensitiveDataFilter,
 } from "@mastra/observability";
 import { assistant } from "./agents/assistant";
+import { titler } from "./agents/titler";
 
 export const mastra = new Mastra({
-  agents: { assistant },
+  agents: { assistant, titler },
   storage: new LibSQLStore({
     id: "mastra-storage",
     url: "file:./mastra.db",

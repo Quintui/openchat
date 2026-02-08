@@ -2,6 +2,7 @@ import { handleChatStream } from "@mastra/ai-sdk";
 import { RequestContext } from "@mastra/core/request-context";
 import { createFileRoute } from "@tanstack/react-router";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import z from "zod";
 import { DEFAULT_MODEL_ID, MODELS } from "@/config/models";
 import { mastra } from "@/mastra";
 import type { MyUIMessage } from "@/types/ui-message";
@@ -24,27 +25,81 @@ export const Route = createFileRoute("/api/chat")({
 
         const stream = createUIMessageStream<MyUIMessage>({
           execute: async ({ writer }) => {
-            const memory = await mastra.getAgent("assistant").getMemory();
+            const agent = await mastra.getAgent("assistant");
+            const memory = await agent.getMemory();
 
-            const thread = await memory?.createThread({
+            let thread = await memory?.getThreadById({
               threadId,
-              resourceId: RESOURCE_ID,
             });
+
+            if (!thread) {
+              const createdThread = await memory?.createThread({
+                threadId,
+                resourceId: RESOURCE_ID,
+                title: "New Chat",
+              });
+
+              if (!createdThread) {
+                throw new Error("Failed to create thread");
+              }
+
+              thread = createdThread;
+
+              writer.write({
+                type: "data-new-thread-created",
+                data: {
+                  threadId: createdThread.id,
+                  title: createdThread.title ?? "New Chat",
+                  resourceId: createdThread.resourceId,
+                  createdAt: createdThread.createdAt.toISOString(),
+                  updatedAt: createdThread.updatedAt.toISOString(),
+                },
+              });
+            }
 
             const chatStream = await handleChatStream<MyUIMessage>({
               mastra,
               agentId: "assistant",
               params: {
+                onFinish: async ({ text }) => {
+                  const titlerAgent = mastra.getAgent("titler");
+
+                  const titleResponseStream = await titlerAgent.stream(
+                    `Context for the title: <context>${text}</context>`,
+                    {
+                      structuredOutput: {
+                        schema: z.object({
+                          title: z.string(),
+                        }),
+                      },
+                    },
+                  );
+
+                  for await (const titleResponse of titleResponseStream.objectStream) {
+                    writer.write({
+                      type: "data-conversation-title",
+                      data: {
+                        title: titleResponse.title ?? "",
+                      },
+                    });
+                  }
+
+                  const finalTitle = await titleResponseStream.object;
+
+                  await memory?.createThread({
+                    threadId,
+                    resourceId: RESOURCE_ID,
+                    title: finalTitle.title,
+                  });
+                },
                 maxSteps: 20,
-                ...params,
+                messages: params.messages,
                 requestContext,
                 memory: {
-                  ...params.memory,
                   thread: thread,
                   resource: RESOURCE_ID,
                 },
               },
-
               sendReasoning: true,
             });
 
