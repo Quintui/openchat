@@ -2,7 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { CheckIcon, CopyIcon, RefreshCcwIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
 import type * as React from "react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -25,34 +25,17 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from "@/components/ai-elements/sources";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
 import { shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import type { Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
-
-  return (
-    <MessageAction
-      tooltip="Copy"
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-        toast.success("Copied to clipboard");
-        setCopied(true);
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        timeoutRef.current = setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? (
-        <CheckIcon className="size-3" />
-      ) : (
-        <CopyIcon className="size-3" />
-      )}
-    </MessageAction>
-  );
-}
+import { CopyButton } from "./copy-button";
 
 export function ChatInterface({
   initialMessages = [],
@@ -64,52 +47,47 @@ export function ChatInterface({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { messages, sendMessage, status, regenerate, setMessages } =
-    useChat<MyUIMessage>({
-      id: threadId,
-      messages: initialMessages,
-      onFinish: () => {
-        queryClient.invalidateQueries({ queryKey: ["threads"] });
+  const { messages, sendMessage, status, regenerate } = useChat<MyUIMessage>({
+    id: threadId,
+    messages: initialMessages,
+    onFinish: () => {
+      queryClient.invalidateQueries({ queryKey: ["threads"] });
+    },
+    onData: (dataPart) => {
+      if (dataPart.type === "data-new-thread-created") {
+        queryClient.setQueryData<{ threads: Thread[] }>(["threads"], (old) => {
+          const newThread: Thread = {
+            id: dataPart.data.threadId,
+            title: dataPart.data.title,
+            resourceId: dataPart.data.resourceId,
+            createdAt: dataPart.data.createdAt,
+            updatedAt: dataPart.data.updatedAt,
+          };
+          if (!old) return { threads: [newThread] };
+          return { threads: [newThread, ...old.threads] };
+        });
+      }
+      if (dataPart.type === "data-conversation-title") {
+        console.log("Received conversation title:", dataPart.data.title);
+        queryClient.setQueryData<{ threads: Thread[] }>(["threads"], (old) => {
+          if (!old) return old;
+          return {
+            threads: old.threads.map((t) =>
+              t.id === threadId ? { ...t, title: dataPart.data.title } : t,
+            ),
+          };
+        });
+      }
+    },
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      body: {
+        threadId,
       },
-      onData: (dataPart) => {
-        if (dataPart.type === "data-new-thread-created") {
-          queryClient.setQueryData<{ threads: Thread[] }>(
-            ["threads"],
-            (old) => {
-              const newThread: Thread = {
-                id: dataPart.data.threadId,
-                title: dataPart.data.title,
-                resourceId: dataPart.data.resourceId,
-                createdAt: dataPart.data.createdAt,
-                updatedAt: dataPart.data.updatedAt,
-              };
-              if (!old) return { threads: [newThread] };
-              return { threads: [newThread, ...old.threads] };
-            },
-          );
-        }
-        if (dataPart.type === "data-conversation-title") {
-          console.log("Received conversation title:", dataPart.data.title);
-          queryClient.setQueryData<{ threads: Thread[] }>(
-            ["threads"],
-            (old) => {
-              if (!old) return old;
-              return {
-                threads: old.threads.map((t) =>
-                  t.id === threadId ? { ...t, title: dataPart.data.title } : t,
-                ),
-              };
-            },
-          );
-        }
-      },
-      transport: new DefaultChatTransport({
-        api: "/api/chat",
-        body: {
-          threadId,
-        },
-      }),
-    });
+    }),
+  });
+
+  console.log("Current messages:", messages);
 
   const isEmptyState = messages.length === 0;
 
@@ -123,7 +101,10 @@ export function ChatInterface({
       }
 
       sendMessage(message, {
-        body: { modelId: message.modelId },
+        body: {
+          modelId: message.modelId,
+          webSearchEnabled: message.webSearchEnabled,
+        },
       });
 
       if (isEmptyState) {
@@ -179,6 +160,31 @@ export function ChatInterface({
                                   {part.text}
                                 </MessageResponse>
                               );
+                            case "tool-webSearch":
+                              return part.state === "output-available" ? (
+                                <Sources key={`${message.id}-${i}`}>
+                                  <SourcesTrigger count={part.output.length} />
+                                  <SourcesContent>
+                                    {part.output.map((source) => (
+                                      <Source
+                                        key={source.url}
+                                        href={source.url}
+                                        title={source.title ?? source.url}
+                                      />
+                                    ))}
+                                  </SourcesContent>
+                                </Sources>
+                              ) : (
+                                <div
+                                  key={`${message.id}-${i}`}
+                                  className="flex items-center gap-1.5"
+                                >
+                                  <GlobeIcon className="text-muted-foreground size-3.5" />
+                                  <Shimmer as="p" className="text-sm">
+                                    {`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
+                                  </Shimmer>
+                                </div>
+                              );
                             default:
                               return null;
                           }
@@ -195,11 +201,7 @@ export function ChatInterface({
                           <MessageAction
                             tooltip="Regenerate"
                             onClick={() => {
-                              const idx = messages.findIndex(
-                                (m) => m.id === message.id,
-                              );
-                              setMessages(messages.slice(0, idx));
-                              regenerate();
+                              regenerate({ messageId: message.id });
                             }}
                           >
                             <RefreshCcwIcon className="size-3" />
