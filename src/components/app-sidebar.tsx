@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ChevronsUpDown, Search, Settings, SquarePen, X } from "lucide-react";
+import {
+	ChevronsUpDown,
+	GitBranch,
+	Search,
+	Settings,
+	SquarePen,
+	X,
+} from "lucide-react";
 import type * as React from "react";
 import { useState } from "react";
 import { ChatSearch } from "@/components/chat-search";
@@ -39,6 +46,7 @@ import {
 } from "@/components/ui/sidebar";
 import { groupByDate } from "@/lib/date-utils";
 import {
+	cloneThread,
 	deleteThread,
 	type Thread,
 	threadsQueryOptions,
@@ -101,6 +109,18 @@ export function AppSidebar(
 		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: ["threads"] });
+		},
+	});
+
+	const branchThreadMutation = useMutation({
+		mutationFn: (sourceThreadId: string) =>
+			cloneThread({ data: { sourceThreadId } }),
+		onSuccess: (result) => {
+			queryClient.invalidateQueries({ queryKey: ["threads"] });
+			navigate({
+				to: "/c/$threadId",
+				params: { threadId: result.thread.id },
+			});
 		},
 	});
 
@@ -182,6 +202,17 @@ export function AppSidebar(
 											>
 												<span>{thread.title ?? "Untitled chat"}</span>
 											</SidebarMenuButton>
+											<SidebarMenuAction
+												showOnHover
+												className="right-6"
+												aria-label="Branch chat"
+												onClick={(e) => {
+													e.preventDefault();
+													branchThreadMutation.mutate(thread.id);
+												}}
+											>
+												<GitBranch className="size-4" />
+											</SidebarMenuAction>
 											<SidebarMenuAction
 												showOnHover
 												aria-label="Delete chat"
