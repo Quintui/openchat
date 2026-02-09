@@ -18,11 +18,7 @@ export function CopyButton({ text }: { text: string }) {
         timeoutRef.current = setTimeout(() => setCopied(false), 2000);
       }}
     >
-      {copied ? (
-        <CheckIcon className="size-3" />
-      ) : (
-        <CopyIcon className="size-3" />
-      )}
+      {copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
     </MessageAction>
   );
 }

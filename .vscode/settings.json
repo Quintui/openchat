@@ -8,6 +8,12 @@
   "files.readonlyInclude": {
     "**/routeTree.gen.ts": true
   },
+
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome",
+
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"
   },

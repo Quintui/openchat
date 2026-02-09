@@ -2,12 +2,7 @@ import type { ModelSelectorLogoProps } from "@/components/ai-elements/model-sele
 
 type ProviderSlug = ModelSelectorLogoProps["provider"];
 
-export const MODEL_GROUPS = [
-  "OpenAI",
-  "Anthropic",
-  "Google",
-  "Moonshot AI",
-] as const;
+export const MODEL_GROUPS = ["OpenAI", "Anthropic", "Google", "Moonshot AI"] as const;
 
 export type ModelOption = {
   chef: (typeof MODEL_GROUPS)[number];

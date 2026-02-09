@@ -38,21 +38,14 @@ export const Route = createFileRoute("/api/chat")({
 
             // On regeneration, delete the target message and everything after it
             // so the new response replaces the old one in the DB
-            if (
-              trigger === "regenerate-message" &&
-              regenerateMessageId &&
-              memory &&
-              thread
-            ) {
+            if (trigger === "regenerate-message" && regenerateMessageId && memory && thread) {
               const { messages: storedMessages } = await memory.recall({
                 resourceId: RESOURCE_ID,
                 threadId,
               });
 
               if (storedMessages) {
-                const targetIdx = storedMessages.findIndex(
-                  (m) => m.id === regenerateMessageId,
-                );
+                const targetIdx = storedMessages.findIndex((m) => m.id === regenerateMessageId);
 
                 if (targetIdx !== -1) {
                   const idsToDelete = storedMessages
