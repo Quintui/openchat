@@ -27,9 +27,8 @@ import {
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import {
 	Source,
-	Sources,
-	SourcesContent,
-	SourcesTrigger,
+	SourceContent,
+	SourceTrigger,
 } from "@/components/ai-elements/sources";
 import { WorkingMemoryUpdate } from "@/components/ai-elements/working-memory-update";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
@@ -195,20 +194,26 @@ export function ChatInterface({
 																);
 															case "tool-webSearch":
 																return part.state === "output-available" ? (
-																	<Sources key={`${message.id}-${i}`}>
-																		<SourcesTrigger
-																			count={part.output.length}
-																		/>
-																		<SourcesContent>
-																			{part.output.map((source) => (
-																				<Source
-																					key={source.url}
-																					href={source.url}
-																					title={source.title ?? source.url}
+																	<div
+																		key={`${message.id}-${i}`}
+																		className="not-prose mb-4 flex flex-wrap gap-2"
+																	>
+																		{part.output.map((source, index) => (
+																			<Source
+																				key={source.url}
+																				href={source.url}
+																			>
+																				<SourceTrigger
+																					showFavicon
+																					label={index + 1}
 																				/>
-																			))}
-																		</SourcesContent>
-																	</Sources>
+																				<SourceContent
+																					title={source.title ?? source.url}
+																					description={source.content}
+																				/>
+																			</Source>
+																		))}
+																	</div>
 																) : (
 																	<div
 																		key={`${message.id}-${i}`}
@@ -260,18 +265,6 @@ export function ChatInterface({
 															}}
 														>
 															<RefreshCcwIcon className="size-3" />
-														</MessageAction>
-													</MessageActions>
-												)}
-												{message.role === "user" && (
-													<MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
-														<MessageAction
-															tooltip="Branch from here"
-															onClick={() => {
-																branchMutation.mutate(message.id);
-															}}
-														>
-															<GitBranchIcon className="size-3" />
 														</MessageAction>
 													</MessageActions>
 												)}
