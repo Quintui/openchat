@@ -19,10 +19,5 @@ function ChatPage() {
   const { messages } = Route.useLoaderData();
   const { threadId } = Route.useParams();
 
-  return (
-    <ChatInterface
-      initialMessages={messages as MyUIMessage[]}
-      threadId={threadId}
-    />
-  );
+  return <ChatInterface initialMessages={messages as MyUIMessage[]} threadId={threadId} />;
 }

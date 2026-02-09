@@ -11,141 +11,135 @@ import type { MyUIMessage } from "@/types/ui-message";
 const RESOURCE_ID = "user-id";
 
 export const Route = createFileRoute("/api/chat")({
-	server: {
-		handlers: {
-			POST: async ({ request }) => {
-				const params = await request.json();
-				const threadId = params.threadId;
-				const trigger = params.trigger as string | undefined;
-				const regenerateMessageId = params.messageId as string | undefined;
-				const rawModelId = params.modelId as string | undefined;
-				const isValidModel = MODELS.some((m) => m.id === rawModelId);
-				const modelId = isValidModel ? rawModelId! : DEFAULT_MODEL_ID;
-				const webSearchEnabled = params.webSearchEnabled === true;
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const params = await request.json();
+        const threadId = params.threadId;
+        const trigger = params.trigger as string | undefined;
+        const regenerateMessageId = params.messageId as string | undefined;
+        const rawModelId = params.modelId as string | undefined;
+        const isValidModel = MODELS.some((m) => m.id === rawModelId);
+        const modelId = isValidModel ? rawModelId! : DEFAULT_MODEL_ID;
+        const webSearchEnabled = params.webSearchEnabled === true;
 
-				const requestContext = new RequestContext();
-				requestContext.set("modelId", modelId);
-				requestContext.set("webSearchEnabled", webSearchEnabled);
+        const requestContext = new RequestContext();
+        requestContext.set("modelId", modelId);
+        requestContext.set("webSearchEnabled", webSearchEnabled);
 
-				const stream = createUIMessageStream<MyUIMessage>({
-					execute: async ({ writer }) => {
-						const agent = await mastra.getAgent("assistant");
-						const memory = await agent.getMemory();
+        const stream = createUIMessageStream<MyUIMessage>({
+          execute: async ({ writer }) => {
+            const agent = await mastra.getAgent("assistant");
+            const memory = await agent.getMemory();
 
-						let thread = await memory?.getThreadById({
-							threadId,
-						});
+            let thread = await memory?.getThreadById({
+              threadId,
+            });
 
-						// On regeneration, delete the target message and everything after it
-						// so the new response replaces the old one in the DB
-						if (
-							trigger === "regenerate-message" &&
-							regenerateMessageId &&
-							memory &&
-							thread
-						) {
-							const { messages: storedMessages } = await memory.recall({
-								resourceId: RESOURCE_ID,
-								threadId,
-							});
+            // On regeneration, delete the target message and everything after it
+            // so the new response replaces the old one in the DB
+            if (trigger === "regenerate-message" && regenerateMessageId && memory && thread) {
+              const { messages: storedMessages } = await memory.recall({
+                resourceId: RESOURCE_ID,
+                threadId,
+              });
 
-							if (storedMessages) {
-								const targetIdx = storedMessages.findIndex(
-									(m) => m.id === regenerateMessageId,
-								);
+              if (storedMessages) {
+                const targetIdx = storedMessages.findIndex((m) => m.id === regenerateMessageId);
 
-								if (targetIdx !== -1) {
-									const idsToDelete = storedMessages
-										.slice(targetIdx)
-										.map((m) => m.id)
-										.filter(Boolean) as string[];
+                if (targetIdx !== -1) {
+                  const idsToDelete = storedMessages
+                    .slice(targetIdx)
+                    .map((m) => m.id)
+                    .filter(Boolean) as string[];
 
-									if (idsToDelete.length > 0) {
-										await memory.deleteMessages(idsToDelete);
-									}
-								}
-							}
-						}
+                  if (idsToDelete.length > 0) {
+                    await memory.deleteMessages(idsToDelete);
+                  }
+                }
+              }
+            }
 
-						if (!thread) {
-							const createdThread = await memory?.createThread({
-								threadId,
-								resourceId: RESOURCE_ID,
-								title: "New Chat",
-							});
+            if (!thread) {
+              const createdThread = await memory?.createThread({
+                threadId,
+                resourceId: RESOURCE_ID,
+                title: "New Chat",
+              });
 
-							if (!createdThread) {
-								throw new Error("Failed to create thread");
-							}
+              if (!createdThread) {
+                throw new Error("Failed to create thread");
+              }
 
-							thread = createdThread;
+              thread = createdThread;
 
-							writer.write({
-								id: createdThread.id,
-								type: "data-new-thread-created",
-								data: {
-									threadId: createdThread.id,
-									title: createdThread.title ?? "New Chat",
-									resourceId: createdThread.resourceId,
-									createdAt: createdThread.createdAt.toISOString(),
-									updatedAt: createdThread.updatedAt.toISOString(),
-								},
-							});
-						}
+              writer.write({
+                id: createdThread.id,
+                type: "data-new-thread-created",
+                data: {
+                  threadId: createdThread.id,
+                  title: createdThread.title ?? "New Chat",
+                  resourceId: createdThread.resourceId,
+                  createdAt: createdThread.createdAt.toISOString(),
+                  updatedAt: createdThread.updatedAt.toISOString(),
+                },
+              });
+            }
 
-						const chatStream = await handleChatStream<MyUIMessage>({
-							mastra,
-							agentId: "assistant",
-							params: {
-								onFinish: async ({ text }) => {
-									const titlerAgent = mastra.getAgent("titler");
+            const chatStream = await handleChatStream<MyUIMessage>({
+              mastra,
+              agentId: "assistant",
 
-									const titleResponseStream = await titlerAgent.stream(
-										`Context for the title: <context>${text}</context>`,
-										{
-											structuredOutput: {
-												schema: z.object({
-													title: z.string(),
-												}),
-											},
-										},
-									);
+              params: {
+                onFinish: async ({ text }) => {
+                  const titlerAgent = mastra.getAgent("titler");
 
-									for await (const titleResponse of titleResponseStream.objectStream) {
-										writer.write({
-											id: `conversation-title-${thread?.id}`,
-											type: "data-conversation-title",
-											data: {
-												title: titleResponse.title ?? "",
-											},
-										});
-									}
+                  const titleResponseStream = await titlerAgent.stream(
+                    `Context for the title: <context>${text}</context>`,
+                    {
+                      structuredOutput: {
+                        schema: z.object({
+                          title: z.string(),
+                        }),
+                      },
+                    },
+                  );
 
-									const finalTitle = await titleResponseStream.object;
+                  for await (const titleResponse of titleResponseStream.objectStream) {
+                    writer.write({
+                      id: `conversation-title-${thread?.id}`,
+                      type: "data-conversation-title",
+                      data: {
+                        title: titleResponse.title ?? "",
+                      },
+                    });
+                  }
 
-									await memory?.createThread({
-										threadId,
-										resourceId: RESOURCE_ID,
-										title: finalTitle.title,
-									});
-								},
-								maxSteps: 20,
-								messages: params.messages,
-								requestContext,
-								memory: {
-									thread: thread,
-									resource: RESOURCE_ID,
-								},
-							},
-							sendReasoning: true,
-						});
+                  const finalTitle = await titleResponseStream.object;
 
-						writer.merge(chatStream);
-					},
-				});
+                  await memory?.createThread({
+                    threadId,
+                    resourceId: RESOURCE_ID,
+                    title: finalTitle.title,
+                  });
+                },
+                maxSteps: 20,
+                messages: params.messages,
+                requestContext,
+                memory: {
+                  thread: thread,
+                  resource: RESOURCE_ID,
+                },
+              },
+              sendReasoning: true,
+            });
 
-				return createUIMessageStreamResponse({ stream });
-			},
-		},
-	},
+            writer.merge(chatStream);
+          },
+        });
+
+        return createUIMessageStreamResponse({ stream });
+      },
+    },
+  },
 });

@@ -10,31 +10,26 @@ import type { MyUIMessage } from "@/types/ui-message";
  *     reasoning parts with actual content (stream is open, first token
  *     hasn't arrived yet)
  */
-export function shouldShowLoadingShimmer(
-	status: ChatStatus,
-	messages: MyUIMessage[],
-): boolean {
-	if (status === "submitted") return true;
+export function shouldShowLoadingShimmer(status: ChatStatus, messages: MyUIMessage[]): boolean {
+  if (status === "submitted") return true;
 
-	if (status === "streaming") {
-		const lastAssistant = findLast(messages, (m) => m.role === "assistant");
-		if (!lastAssistant) return true;
+  if (status === "streaming") {
+    const lastAssistant = findLast(messages, (m) => m.role === "assistant");
+    if (!lastAssistant) return true;
 
-		const hasContent = lastAssistant.parts.some(
-			(part) =>
-				(part.type === "text" || part.type === "reasoning") &&
-				part.text.length > 0,
-		);
+    const hasContent = lastAssistant.parts.some(
+      (part) => (part.type === "text" || part.type === "reasoning") && part.text.length > 0,
+    );
 
-		return !hasContent;
-	}
+    return !hasContent;
+  }
 
-	return false;
+  return false;
 }
 
 function findLast<T>(arr: T[], predicate: (item: T) => boolean): T | undefined {
-	for (let i = arr.length - 1; i >= 0; i--) {
-		if (predicate(arr[i])) return arr[i];
-	}
-	return undefined;
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (predicate(arr[i])) return arr[i];
+  }
+  return undefined;
 }
