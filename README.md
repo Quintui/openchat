@@ -5,7 +5,7 @@ An AI chat application built with [Mastra](https://mastra.ai), [TanStack Start](
 ## Features
 
 - Conversational AI assistant with working memory that persists across threads
-- Multi-model support via OpenRouter (switch models on the fly)
+- Claude models via [Anthropic](https://www.anthropic.com) (switch models on the fly)
 - Web search powered by [Exa](https://exa.ai)
 - Thread management: create, list, delete, and branch conversations
 - Dark/light theme support
@@ -15,7 +15,7 @@ An AI chat application built with [Mastra](https://mastra.ai), [TanStack Start](
 ### Prerequisites
 
 - [Bun](https://bun.sh)
-- An [OpenRouter](https://openrouter.ai) API key
+- An [Anthropic](https://console.anthropic.com) API key
 - An [Exa](https://exa.ai) API key (optional, for web search)
 
 ### Setup
@@ -28,7 +28,7 @@ cp .env.example .env
 Fill in your API keys in `.env`:
 
 ```
-OPENROUTER_API_KEY=your-api-key
+ANTHROPIC_API_KEY=your-api-key
 EXA_API_KEY=your-exa-api-key
 ```
 
