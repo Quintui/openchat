@@ -1,5 +1,5 @@
 {
-  "projectName": "goodchat",
+  "projectName": "openchat",
   "mode": "file-router",
   "typescript": true,
   "packageManager": "bun",

@@ -1,4 +1,4 @@
-# GoodChat
+# OpenChat
 
 An AI chat application built with [Mastra](https://mastra.ai), [TanStack Start](https://tanstack.com/start), and React 19.
 
