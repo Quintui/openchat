@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
+import { RESOURCE_ID } from "@/config/resource";
 import { type WorkingMemory, workingMemorySchema } from "@/config/working-memory";
+import { getAssistantMemory } from "@/lib/chat-helpers";
 import { mastra } from "@/mastra";
-
-const RESOURCE_ID = "user-id";
 
 export const getWorkingMemory = createServerFn({ method: "GET" }).handler(async () => {
   const memory = await mastra.getAgent("assistant").getMemory();
@@ -32,11 +32,7 @@ export const getWorkingMemory = createServerFn({ method: "GET" }).handler(async 
 export const updateWorkingMemory = createServerFn({ method: "POST" })
   .validator(workingMemorySchema)
   .handler(async ({ data }) => {
-    const memory = await mastra.getAgent("assistant").getMemory();
-
-    if (!memory) {
-      throw new Error("Memory not available");
-    }
+    const memory = await getAssistantMemory();
 
     await memory.updateWorkingMemory({
       threadId: "",

@@ -12,19 +12,14 @@ import type { MyUIMessage } from "@/types/ui-message";
  */
 export function shouldShowLoadingShimmer(status: ChatStatus, messages: MyUIMessage[]): boolean {
   if (status === "submitted") return true;
+  if (status !== "streaming") return false;
 
-  if (status === "streaming") {
-    const lastAssistant = findLast(messages, (m) => m.role === "assistant");
-    if (!lastAssistant) return true;
+  const lastAssistant = findLast(messages, (m) => m.role === "assistant");
+  if (!lastAssistant) return true;
 
-    const hasContent = lastAssistant.parts.some(
-      (part) => (part.type === "text" || part.type === "reasoning") && part.text.length > 0,
-    );
-
-    return !hasContent;
-  }
-
-  return false;
+  return !lastAssistant.parts.some(
+    (part) => (part.type === "text" || part.type === "reasoning") && part.text.length > 0,
+  );
 }
 
 function findLast<T>(arr: T[], predicate: (item: T) => boolean): T | undefined {
