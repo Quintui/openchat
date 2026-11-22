@@ -52,6 +52,14 @@ bun run build
 bun test
 ```
 
+Smoke test (Playwright, runs against the production build and saves a screenshot of the chat to `test-results/`):
+
+```bash
+bunx playwright install chromium   # first run only
+bun run build
+bun run test:e2e
+```
+
 ### Lint & Format
 
 ```bash
