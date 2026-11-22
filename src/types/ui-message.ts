@@ -16,13 +16,12 @@ export type MyUIMessage = UIMessage<
     };
   },
   {
-    webSearch: {
+    web_search: {
       input: { query: string };
       output: Array<{
-        title: string | null;
         url: string;
-        content: string;
-        publishedDate?: string;
+        title?: string | null;
+        pageAge?: string | null;
       }>;
     };
     updateWorkingMemory: {

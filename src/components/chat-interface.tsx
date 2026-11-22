@@ -24,7 +24,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Source, SourceContent, SourceTrigger } from "@/components/ai-elements/sources";
 import { WorkingMemoryUpdate } from "@/components/ai-elements/working-memory-update";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
-import { shouldShowLoadingShimmer } from "@/lib/chat-utils";
+import { getMessageText, getTextRun, shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import { cloneThread, type Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
 import { CopyButton } from "./copy-button";
@@ -177,16 +177,30 @@ export function ChatInterface({
                                     <ReasoningContent>{part.text}</ReasoningContent>
                                   </Reasoning>
                                 );
-                              case "text":
+                              case "text": {
+                                const text = getTextRun(message.parts, i);
+                                if (text === null) return null;
                                 return (
                                   <MessageResponse
                                     // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
                                     key={`${message.id}-${i}`}
                                   >
-                                    {part.text}
+                                    {text}
                                   </MessageResponse>
                                 );
-                              case "tool-webSearch":
+                              }
+                              case "tool-web_search":
+                                if (part.state === "output-error") {
+                                  return (
+                                    <div
+                                      key={part.toolCallId}
+                                      className="text-muted-foreground flex items-center gap-1.5 text-sm"
+                                    >
+                                      <GlobeIcon className="size-3.5" />
+                                      Search failed
+                                    </div>
+                                  );
+                                }
                                 return part.state === "output-available" ? (
                                   <div
                                     key={part.toolCallId}
@@ -197,7 +211,9 @@ export function ChatInterface({
                                         <SourceTrigger showFavicon label={index + 1} />
                                         <SourceContent
                                           title={source.title ?? source.url}
-                                          description={source.content}
+                                          description={
+                                            source.pageAge ? `Updated ${source.pageAge}` : undefined
+                                          }
                                         />
                                       </Source>
                                     ))}
@@ -227,12 +243,7 @@ export function ChatInterface({
                         </MessageContent>
                         {message.role === "assistant" && (
                           <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
-                            <CopyButton
-                              text={message.parts
-                                .filter((p) => p.type === "text")
-                                .map((p) => p.text)
-                                .join("\n")}
-                            />
+                            <CopyButton text={getMessageText(message.parts)} />
                             <MessageAction
                               tooltip="Branch from here"
                               onClick={() => {
