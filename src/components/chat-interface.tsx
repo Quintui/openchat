@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -32,9 +32,11 @@ import { WorkingMemoryUpdate } from "@/components/ai-elements/working-memory-upd
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
 import { Button } from "@/components/ui/button";
 import { useDraftInput } from "@/hooks/use-draft-input";
+import { getCanvases, getCanvasId, isCanvasPart } from "@/lib/canvas";
 import { getMessageText, getTextRun, shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import { cloneThread, type Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
+import { CanvasCard, CanvasPanel } from "./canvas-panel";
 import { CopyButton } from "./copy-button";
 import { UserMessageEditor } from "./user-message-editor";
 
@@ -106,6 +108,31 @@ export function ChatInterface({
   const isEmptyState = messages.length === 0;
   const isGenerating = status === "submitted" || status === "streaming";
 
+  const canvases = useMemo(() => getCanvases(messages), [messages]);
+  const [openCanvasId, setOpenCanvasId] = useState<string | null>(null);
+  const openCanvas = openCanvasId ? (canvases.get(openCanvasId) ?? null) : null;
+  const autoOpened = useRef<{ toolCallId: string; canvasId: string } | null>(null);
+
+  // Open a canvas as soon as the assistant starts writing it. While the tool call streams,
+  // the canvas id can change (a new canvas moves from its tool call id to its created id,
+  // and an update's id arrives in pieces), so keep following it unless the user moved on.
+  useEffect(() => {
+    if (!isGenerating) return;
+    const lastMessage = messages.at(-1);
+    if (lastMessage?.role !== "assistant") return;
+    const part = lastMessage.parts.filter(isCanvasPart).at(-1);
+    if (!part) return;
+    const id = getCanvasId(part);
+    if (!id) return;
+    const previous = autoOpened.current;
+    autoOpened.current = { toolCallId: part.toolCallId, canvasId: id };
+    if (previous?.toolCallId !== part.toolCallId) {
+      setOpenCanvasId(id);
+    } else if (previous.canvasId !== id) {
+      setOpenCanvasId((current) => (current === previous.canvasId ? id : current));
+    }
+  }, [messages, isGenerating]);
+
   const handleSubmitMessage = useCallback(
     (message: PromptInputMessage): void => {
       const hasText = Boolean(message.text);
@@ -132,241 +159,267 @@ export function ChatInterface({
   );
 
   return (
-    <div className="flex h-full flex-1 flex-col">
-      <AnimatePresence mode="wait" initial={false}>
-        {isEmptyState ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-            className="mx-auto flex w-full max-w-[70ch] flex-1 flex-col items-center justify-center gap-14 px-6 pb-24"
-          >
-            <h1 className="text-foreground text-5xl font-medium tracking-tight">
-              What can I help with?
-            </h1>
-            <ChatPromptComposer
-              className="w-full"
-              onSubmitMessage={handleSubmitMessage}
-              placeholder="Ask anything"
-              status={status}
-              textareaClassName="min-h-16 text-lg"
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="conversation"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            className="flex min-h-0 flex-1 flex-col"
-          >
-            <Conversation className="min-h-0 flex-1">
-              <ConversationContent className="mx-auto w-full max-w-[70ch] gap-8 px-6 py-6">
-                {messages.map(
-                  (message, index): React.JSX.Element => (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.2,
-                        delay: Math.min(index * 0.04, 0.2),
-                        ease: [0.25, 0.1, 0.25, 1],
-                      }}
-                    >
-                      <Message from={message.role}>
-                        {editingMessageId === message.id ? (
-                          <UserMessageEditor
-                            initialText={getMessageText(message.parts)}
-                            onCancel={() => setEditingMessageId(null)}
-                            onSend={(text) => {
-                              setEditingMessageId(null);
-                              sendMessage({ text, messageId: message.id }, { body: requestBody });
-                            }}
-                          />
-                        ) : (
-                          <MessageContent>
-                            {message.parts.map((part, i) => {
-                              switch (part.type) {
-                                case "reasoning":
-                                  return (
-                                    <Reasoning
-                                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
-                                      key={`${message.id}-${i}`}
-                                      isStreaming={part.state === "streaming"}
-                                    >
-                                      <ReasoningTrigger />
-                                      <ReasoningContent>{part.text}</ReasoningContent>
-                                    </Reasoning>
-                                  );
-                                case "text": {
-                                  const text = getTextRun(message.parts, i);
-                                  if (text === null) return null;
-                                  return (
-                                    <MessageResponse
-                                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
-                                      key={`${message.id}-${i}`}
-                                    >
-                                      {text}
-                                    </MessageResponse>
-                                  );
-                                }
-                                case "tool-web_search":
-                                  if (part.state === "output-error") {
-                                    return (
-                                      <div
-                                        key={part.toolCallId}
-                                        className="text-muted-foreground flex items-center gap-1.5 text-sm"
-                                      >
-                                        <GlobeIcon className="size-3.5" />
-                                        Search failed
-                                      </div>
-                                    );
-                                  }
-                                  return part.state === "output-available" ? (
-                                    <div
-                                      key={part.toolCallId}
-                                      className="not-prose mb-4 flex flex-wrap gap-2"
-                                    >
-                                      {part.output.map((source, index) => (
-                                        <Source key={source.url} href={source.url}>
-                                          <SourceTrigger showFavicon label={index + 1} />
-                                          <SourceContent
-                                            title={source.title ?? source.url}
-                                            description={
-                                              source.pageAge
-                                                ? `Updated ${source.pageAge}`
-                                                : undefined
-                                            }
-                                          />
-                                        </Source>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div
-                                      key={part.toolCallId}
-                                      className="flex items-center gap-1.5"
-                                    >
-                                      <GlobeIcon className="text-muted-foreground size-3.5" />
-                                      <Shimmer as="p" className="text-sm">
-                                        {`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
-                                      </Shimmer>
-                                    </div>
-                                  );
-                                case "tool-updateWorkingMemory":
-                                  return (
-                                    <WorkingMemoryUpdate
-                                      key={part.toolCallId}
-                                      state={part.state}
-                                      input={
-                                        part.state !== "input-streaming" ? part.input : undefined
-                                      }
-                                    />
-                                  );
-                                default:
-                                  return null;
-                              }
-                            })}
-                          </MessageContent>
-                        )}
-                        {message.role === "user" &&
-                          !isGenerating &&
-                          editingMessageId !== message.id && (
-                            <MessageActions className="justify-end opacity-0 transition-opacity group-hover:opacity-100">
-                              <MessageAction
-                                tooltip="Edit"
-                                onClick={() => {
-                                  setEditingMessageId(message.id);
-                                }}
-                              >
-                                <PencilIcon className="size-3" />
-                              </MessageAction>
-                            </MessageActions>
-                          )}
-                        {message.role === "assistant" &&
-                          !(isGenerating && index === messages.length - 1) && (
-                            <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
-                              <CopyButton text={getMessageText(message.parts)} />
-                              <MessageAction
-                                tooltip="Branch from here"
-                                onClick={() => {
-                                  branchMutation.mutate(message.id);
-                                }}
-                              >
-                                <GitBranchIcon className="size-3" />
-                              </MessageAction>
-                              <MessageAction
-                                tooltip="Regenerate"
-                                onClick={() => {
-                                  regenerate({ messageId: message.id, body: requestBody });
-                                }}
-                              >
-                                <RefreshCcwIcon className="size-3" />
-                              </MessageAction>
-                            </MessageActions>
-                          )}
-                      </Message>
-                    </motion.div>
-                  ),
-                )}
-
-                {status === "error" && (
-                  <Message from="assistant">
-                    <MessageContent>
-                      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                        <AlertCircleIcon className="text-destructive size-4" />
-                        Something went wrong.
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            regenerate({ body: requestBody });
-                          }}
-                        >
-                          <RefreshCcwIcon className="size-3" />
-                          Retry
-                        </Button>
-                      </div>
-                    </MessageContent>
-                  </Message>
-                )}
-
-                {shouldShowLoadingShimmer(status, messages) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.15,
-                      ease: [0.25, 0.1, 0.25, 1],
-                    }}
-                  >
-                    <Message from="assistant">
-                      <MessageContent>
-                        <Shimmer as="p" className="text-sm">
-                          Thinking...
-                        </Shimmer>
-                      </MessageContent>
-                    </Message>
-                  </motion.div>
-                )}
-              </ConversationContent>
-              <ConversationScrollButton />
-            </Conversation>
-
-            <div className="mx-auto w-full max-w-[70ch] px-6 pb-8 pt-4">
+    <div className="flex h-full min-w-0 flex-1">
+      <div className="flex h-full min-w-0 flex-1 flex-col">
+        <AnimatePresence mode="wait" initial={false}>
+          {isEmptyState ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+              className="mx-auto flex w-full max-w-[70ch] flex-1 flex-col items-center justify-center gap-14 px-6 pb-24"
+            >
+              <h1 className="text-foreground text-5xl font-medium tracking-tight">
+                What can I help with?
+              </h1>
               <ChatPromptComposer
                 className="w-full"
                 onSubmitMessage={handleSubmitMessage}
-                placeholder="Say something..."
+                placeholder="Ask anything"
                 status={status}
-                textareaClassName="min-h-14"
+                textareaClassName="min-h-16 text-lg"
               />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="conversation"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <Conversation className="min-h-0 flex-1">
+                <ConversationContent className="mx-auto w-full max-w-[70ch] gap-8 px-6 py-6">
+                  {messages.map(
+                    (message, index): React.JSX.Element => (
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.2,
+                          delay: Math.min(index * 0.04, 0.2),
+                          ease: [0.25, 0.1, 0.25, 1],
+                        }}
+                      >
+                        <Message from={message.role}>
+                          {editingMessageId === message.id ? (
+                            <UserMessageEditor
+                              initialText={getMessageText(message.parts)}
+                              onCancel={() => setEditingMessageId(null)}
+                              onSend={(text) => {
+                                setEditingMessageId(null);
+                                sendMessage({ text, messageId: message.id }, { body: requestBody });
+                              }}
+                            />
+                          ) : (
+                            <MessageContent>
+                              {message.parts.map((part, i) => {
+                                switch (part.type) {
+                                  case "reasoning":
+                                    return (
+                                      <Reasoning
+                                        // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
+                                        key={`${message.id}-${i}`}
+                                        isStreaming={part.state === "streaming"}
+                                      >
+                                        <ReasoningTrigger />
+                                        <ReasoningContent>{part.text}</ReasoningContent>
+                                      </Reasoning>
+                                    );
+                                  case "text": {
+                                    const text = getTextRun(message.parts, i);
+                                    if (text === null) return null;
+                                    return (
+                                      <MessageResponse
+                                        // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
+                                        key={`${message.id}-${i}`}
+                                      >
+                                        {text}
+                                      </MessageResponse>
+                                    );
+                                  }
+                                  case "tool-web_search":
+                                    if (part.state === "output-error") {
+                                      return (
+                                        <div
+                                          key={part.toolCallId}
+                                          className="text-muted-foreground flex items-center gap-1.5 text-sm"
+                                        >
+                                          <GlobeIcon className="size-3.5" />
+                                          Search failed
+                                        </div>
+                                      );
+                                    }
+                                    return part.state === "output-available" ? (
+                                      <div
+                                        key={part.toolCallId}
+                                        className="not-prose mb-4 flex flex-wrap gap-2"
+                                      >
+                                        {part.output.map((source, index) => (
+                                          <Source key={source.url} href={source.url}>
+                                            <SourceTrigger showFavicon label={index + 1} />
+                                            <SourceContent
+                                              title={source.title ?? source.url}
+                                              description={
+                                                source.pageAge
+                                                  ? `Updated ${source.pageAge}`
+                                                  : undefined
+                                              }
+                                            />
+                                          </Source>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div
+                                        key={part.toolCallId}
+                                        className="flex items-center gap-1.5"
+                                      >
+                                        <GlobeIcon className="text-muted-foreground size-3.5" />
+                                        <Shimmer as="p" className="text-sm">
+                                          {`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
+                                        </Shimmer>
+                                      </div>
+                                    );
+                                  case "tool-createCanvas":
+                                  case "tool-updateCanvas": {
+                                    if (part.state === "output-error") return null;
+                                    const id = getCanvasId(part);
+                                    const canvas = id ? canvases.get(id) : undefined;
+                                    if (!(id && canvas)) return null;
+                                    return (
+                                      <CanvasCard
+                                        key={part.toolCallId}
+                                        canvas={{
+                                          ...canvas,
+                                          isStreaming:
+                                            part.state === "input-streaming" ||
+                                            part.state === "input-available",
+                                        }}
+                                        action={
+                                          part.type === "tool-createCanvas" ? "created" : "updated"
+                                        }
+                                        isOpen={openCanvasId === id}
+                                        onOpen={() => setOpenCanvasId(id)}
+                                      />
+                                    );
+                                  }
+                                  case "tool-updateWorkingMemory":
+                                    return (
+                                      <WorkingMemoryUpdate
+                                        key={part.toolCallId}
+                                        state={part.state}
+                                        input={
+                                          part.state !== "input-streaming" ? part.input : undefined
+                                        }
+                                      />
+                                    );
+                                  default:
+                                    return null;
+                                }
+                              })}
+                            </MessageContent>
+                          )}
+                          {message.role === "user" &&
+                            !isGenerating &&
+                            editingMessageId !== message.id && (
+                              <MessageActions className="justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                                <MessageAction
+                                  tooltip="Edit"
+                                  onClick={() => {
+                                    setEditingMessageId(message.id);
+                                  }}
+                                >
+                                  <PencilIcon className="size-3" />
+                                </MessageAction>
+                              </MessageActions>
+                            )}
+                          {message.role === "assistant" &&
+                            !(isGenerating && index === messages.length - 1) && (
+                              <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
+                                <CopyButton text={getMessageText(message.parts)} />
+                                <MessageAction
+                                  tooltip="Branch from here"
+                                  onClick={() => {
+                                    branchMutation.mutate(message.id);
+                                  }}
+                                >
+                                  <GitBranchIcon className="size-3" />
+                                </MessageAction>
+                                <MessageAction
+                                  tooltip="Regenerate"
+                                  onClick={() => {
+                                    regenerate({ messageId: message.id, body: requestBody });
+                                  }}
+                                >
+                                  <RefreshCcwIcon className="size-3" />
+                                </MessageAction>
+                              </MessageActions>
+                            )}
+                        </Message>
+                      </motion.div>
+                    ),
+                  )}
+
+                  {status === "error" && (
+                    <Message from="assistant">
+                      <MessageContent>
+                        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                          <AlertCircleIcon className="text-destructive size-4" />
+                          Something went wrong.
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              regenerate({ body: requestBody });
+                            }}
+                          >
+                            <RefreshCcwIcon className="size-3" />
+                            Retry
+                          </Button>
+                        </div>
+                      </MessageContent>
+                    </Message>
+                  )}
+
+                  {shouldShowLoadingShimmer(status, messages) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.15,
+                        ease: [0.25, 0.1, 0.25, 1],
+                      }}
+                    >
+                      <Message from="assistant">
+                        <MessageContent>
+                          <Shimmer as="p" className="text-sm">
+                            Thinking...
+                          </Shimmer>
+                        </MessageContent>
+                      </Message>
+                    </motion.div>
+                  )}
+                </ConversationContent>
+                <ConversationScrollButton />
+              </Conversation>
+
+              <div className="mx-auto w-full max-w-[70ch] px-6 pb-8 pt-4">
+                <ChatPromptComposer
+                  className="w-full"
+                  onSubmitMessage={handleSubmitMessage}
+                  placeholder="Say something..."
+                  status={status}
+                  textareaClassName="min-h-14"
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <CanvasPanel canvas={openCanvas} onClose={() => setOpenCanvasId(null)} />
     </div>
   );
 }
