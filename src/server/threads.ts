@@ -1,9 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { RESOURCE_ID } from "@/config/resource";
+import { getAssistantMemory } from "@/lib/chat-helpers";
 import { mastra } from "@/mastra";
-
-const RESOURCE_ID = "user-id";
 
 const cloneThreadSchema = z.object({
   sourceThreadId: z.string().min(1, "sourceThreadId is required"),
@@ -13,11 +13,7 @@ const cloneThreadSchema = z.object({
 export const cloneThread = createServerFn({ method: "POST" })
   .validator(cloneThreadSchema)
   .handler(async ({ data }) => {
-    const memory = await mastra.getAgent("assistant").getMemory();
-
-    if (!memory) {
-      throw new Error("Memory not available");
-    }
+    const memory = await getAssistantMemory();
 
     let messageFilter: { messageIds: string[] } | undefined;
 
@@ -31,12 +27,7 @@ export const cloneThread = createServerFn({ method: "POST" })
       const idx = allMessages.findIndex((m) => m.id === data.upToMessageId);
 
       if (idx !== -1) {
-        const idsUpTo = allMessages
-          .slice(0, idx + 1)
-          .map((m) => m.id)
-          .filter(Boolean) as string[];
-
-        messageFilter = { messageIds: idsUpTo };
+        messageFilter = { messageIds: allMessages.slice(0, idx + 1).map((m) => m.id) };
       }
     }
 
@@ -99,11 +90,7 @@ const deleteThreadSchema = z.object({
 export const deleteThread = createServerFn({ method: "POST" })
   .validator(deleteThreadSchema)
   .handler(async ({ data }) => {
-    const memory = await mastra.getAgent("assistant").getMemory();
-
-    if (!memory) {
-      throw new Error("Memory not available");
-    }
+    const memory = await getAssistantMemory();
 
     await memory.deleteThread(data.threadId);
 

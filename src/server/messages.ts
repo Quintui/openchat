@@ -1,9 +1,8 @@
 import { toAISdkMessages } from "@mastra/ai-sdk/ui";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { RESOURCE_ID } from "@/config/resource";
 import { mastra } from "@/mastra";
-
-const RESOURCE_ID = "user-id";
 
 const getThreadMessagesSchema = z.object({
   threadId: z.string().min(1, "threadId is required"),
