@@ -2,7 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { GitBranchIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
+import { AlertCircleIcon, GitBranchIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
 import { useCallback } from "react";
@@ -24,6 +24,8 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Source, SourceContent, SourceTrigger } from "@/components/ai-elements/sources";
 import { WorkingMemoryUpdate } from "@/components/ai-elements/working-memory-update";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
+import { Button } from "@/components/ui/button";
+import { useDraftInput } from "@/hooks/use-draft-input";
 import { getMessageText, getTextRun, shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import { cloneThread, type Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
@@ -39,6 +41,9 @@ export function ChatInterface({
   const router = useRouter();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { modelId, webSearchEnabled } = useDraftInput();
+  // Edits and regenerations use the model and search setting currently selected in the composer.
+  const requestBody = { modelId, webSearchEnabled };
 
   const branchMutation = useMutation({
     mutationFn: (upToMessageId: string) =>
@@ -91,6 +96,7 @@ export function ChatInterface({
   });
 
   const isEmptyState = messages.length === 0;
+  const isGenerating = status === "submitted" || status === "streaming";
 
   const handleSubmitMessage = useCallback(
     (message: PromptInputMessage): void => {
@@ -241,30 +247,52 @@ export function ChatInterface({
                             }
                           })}
                         </MessageContent>
-                        {message.role === "assistant" && (
-                          <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
-                            <CopyButton text={getMessageText(message.parts)} />
-                            <MessageAction
-                              tooltip="Branch from here"
-                              onClick={() => {
-                                branchMutation.mutate(message.id);
-                              }}
-                            >
-                              <GitBranchIcon className="size-3" />
-                            </MessageAction>
-                            <MessageAction
-                              tooltip="Regenerate"
-                              onClick={() => {
-                                regenerate({ messageId: message.id });
-                              }}
-                            >
-                              <RefreshCcwIcon className="size-3" />
-                            </MessageAction>
-                          </MessageActions>
-                        )}
+                        {message.role === "assistant" &&
+                          !(isGenerating && index === messages.length - 1) && (
+                            <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
+                              <CopyButton text={getMessageText(message.parts)} />
+                              <MessageAction
+                                tooltip="Branch from here"
+                                onClick={() => {
+                                  branchMutation.mutate(message.id);
+                                }}
+                              >
+                                <GitBranchIcon className="size-3" />
+                              </MessageAction>
+                              <MessageAction
+                                tooltip="Regenerate"
+                                onClick={() => {
+                                  regenerate({ messageId: message.id, body: requestBody });
+                                }}
+                              >
+                                <RefreshCcwIcon className="size-3" />
+                              </MessageAction>
+                            </MessageActions>
+                          )}
                       </Message>
                     </motion.div>
                   ),
+                )}
+
+                {status === "error" && (
+                  <Message from="assistant">
+                    <MessageContent>
+                      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                        <AlertCircleIcon className="text-destructive size-4" />
+                        Something went wrong.
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            regenerate({ body: requestBody });
+                          }}
+                        >
+                          <RefreshCcwIcon className="size-3" />
+                          Retry
+                        </Button>
+                      </div>
+                    </MessageContent>
+                  </Message>
                 )}
 
                 {shouldShowLoadingShimmer(status, messages) && (
