@@ -79,7 +79,12 @@ export async function resolveThread(
 export async function truncateHistory(memory: MastraMemory, params: ChatRequest): Promise<void> {
   if (params.trigger !== "regenerate-message" && !params.messageId) return;
 
-  const { messages } = await memory.recall({ resourceId: RESOURCE_ID, threadId: params.threadId });
+  // Without perPage, recall returns only the newest few messages, so an older turn wouldn't be found.
+  const { messages } = await memory.recall({
+    resourceId: RESOURCE_ID,
+    threadId: params.threadId,
+    perPage: false,
+  });
   const ids = getTruncationIds(
     messages.map((m) => m.id),
     params.messages,
