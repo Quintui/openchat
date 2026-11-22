@@ -1180,7 +1180,9 @@ export const PromptInputHoverCardTrigger = ({
   delay = 0,
   closeDelay = 0,
   ...props
-}: PromptInputHoverCardTriggerProps) => <HoverCardTrigger closeDelay={closeDelay} delay={delay} {...props} />;
+}: PromptInputHoverCardTriggerProps) => (
+  <HoverCardTrigger closeDelay={closeDelay} delay={delay} {...props} />
+);
 
 export type PromptInputHoverCardContentProps = ComponentProps<typeof HoverCardContent>;
 

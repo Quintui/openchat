@@ -1,6 +1,7 @@
 export function OpenChatLogo({ className }: { className?: string }): React.JSX.Element {
   return (
     <svg viewBox="0 0 316.8 316.8" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <title>OpenChat</title>
       <rect width="316.8" height="316.8" className="fill-background" />
       <polygon points="79.2 198 79.2 148.5 128.7 148.5 79.2 198" className="fill-foreground" />
       <polygon

@@ -114,7 +114,7 @@ export function ChatInterface({
         router.history._ignoreSubscribers = false;
       }
     },
-    [sendMessage, threadId, isEmptyState],
+    [sendMessage, threadId, isEmptyState, router.history],
   );
 
   return (
@@ -169,6 +169,7 @@ export function ChatInterface({
                               case "reasoning":
                                 return (
                                   <Reasoning
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
                                     key={`${message.id}-${i}`}
                                     isStreaming={part.state === "streaming"}
                                   >
@@ -178,14 +179,17 @@ export function ChatInterface({
                                 );
                               case "text":
                                 return (
-                                  <MessageResponse key={`${message.id}-${i}`}>
+                                  <MessageResponse
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
+                                    key={`${message.id}-${i}`}
+                                  >
                                     {part.text}
                                   </MessageResponse>
                                 );
                               case "tool-webSearch":
                                 return part.state === "output-available" ? (
                                   <div
-                                    key={`${message.id}-${i}`}
+                                    key={part.toolCallId}
                                     className="not-prose mb-4 flex flex-wrap gap-2"
                                   >
                                     {part.output.map((source, index) => (
@@ -199,10 +203,7 @@ export function ChatInterface({
                                     ))}
                                   </div>
                                 ) : (
-                                  <div
-                                    key={`${message.id}-${i}`}
-                                    className="flex items-center gap-1.5"
-                                  >
+                                  <div key={part.toolCallId} className="flex items-center gap-1.5">
                                     <GlobeIcon className="text-muted-foreground size-3.5" />
                                     <Shimmer as="p" className="text-sm">
                                       {`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
@@ -212,7 +213,7 @@ export function ChatInterface({
                               case "tool-updateWorkingMemory":
                                 return (
                                   <WorkingMemoryUpdate
-                                    key={`${message.id}-${i}`}
+                                    key={part.toolCallId}
                                     state={part.state}
                                     input={
                                       part.state !== "input-streaming" ? part.input : undefined

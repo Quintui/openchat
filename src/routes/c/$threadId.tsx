@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ChatInterface } from "@/components/chat-interface";
 import { getThreadMessages } from "@/server/messages";
-import { MyUIMessage } from "@/types/ui-message";
+import type { MyUIMessage } from "@/types/ui-message";
 
 export const Route = createFileRoute("/c/$threadId")({
   loader: async ({ params }) => {

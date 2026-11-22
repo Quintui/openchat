@@ -21,9 +21,6 @@ export function groupByDate<T>(items: T[], getDate: (item: T) => string | Date):
 
   const buckets = new Map<string, T[]>();
 
-  // Ordered keys so we can preserve insertion order
-  const orderedKeys: string[] = [];
-
   for (const item of items) {
     const raw = getDate(item);
     const date = raw instanceof Date ? raw : new Date(raw);
@@ -42,17 +39,15 @@ export function groupByDate<T>(items: T[], getDate: (item: T) => string | Date):
       key = formatMonthYear(date);
     }
 
-    if (!buckets.has(key)) {
-      buckets.set(key, []);
-      orderedKeys.push(key);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      buckets.set(key, [item]);
     }
-    buckets.get(key)!.push(item);
   }
 
-  return orderedKeys.map((key) => ({
-    label: key,
-    items: buckets.get(key)!,
-  }));
+  return Array.from(buckets, ([label, items]) => ({ label, items }));
 }
 
 // ── Internal helpers ──────────────────────────────────────
