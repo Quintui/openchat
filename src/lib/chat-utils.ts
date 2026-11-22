@@ -52,3 +52,11 @@ export function getTextRun(parts: Part[], index: number): string | null {
   }
   return text;
 }
+
+/** The message's text as rendered: each text run joined, runs separated by newlines. */
+export function getMessageText(parts: Part[]): string {
+  return parts
+    .map((part, i) => (part.type === "text" ? getTextRun(parts, i) : null))
+    .filter((text) => text !== null)
+    .join("\n");
+}

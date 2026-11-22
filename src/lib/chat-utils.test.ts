@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MyUIMessage } from "@/types/ui-message";
-import { getTextRun } from "./chat-utils";
+import { getMessageText, getTextRun } from "./chat-utils";
 
 type Part = MyUIMessage["parts"][number];
 
@@ -24,5 +24,19 @@ describe("getTextRun", () => {
 
   it("returns a single text part unchanged", () => {
     expect(getTextRun([text("Hello")], 0)).toBe("Hello");
+  });
+});
+
+describe("getMessageText", () => {
+  it("joins citation fragments without separators and runs with newlines", () => {
+    const parts = [
+      text("Node.js "),
+      text("26.13.1"),
+      source("https://a"),
+      text(" is out."),
+      reasoning,
+      text("Done."),
+    ];
+    expect(getMessageText(parts)).toBe("Node.js 26.13.1 is out.\nDone.");
   });
 });
