@@ -1,7 +1,11 @@
 import { handleChatStream } from "@mastra/ai-sdk";
 import { RequestContext } from "@mastra/core/request-context";
 import { createFileRoute } from "@tanstack/react-router";
-import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type InferUIMessageChunk,
+} from "ai";
 import {
   generateThreadTitle,
   handleRegeneration,
@@ -9,7 +13,7 @@ import {
   resolveThread,
 } from "@/lib/chat-helpers";
 import { mastra } from "@/mastra";
-import type { MyUIMessage } from "@/types/ui-message";
+import type { AgentUIMessage, MyUIMessage } from "@/types/ui-message";
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -50,9 +54,10 @@ export const Route = createFileRoute("/api/chat")({
                 );
               }
 
-              const chatStream = await handleChatStream<MyUIMessage>({
+              const chatStream = await handleChatStream<AgentUIMessage>({
                 mastra,
                 agentId: "assistant",
+                version: "v7",
                 params: {
                   onFinish: async ({ text }) => {
                     if (!isNew) return;
@@ -79,7 +84,11 @@ export const Route = createFileRoute("/api/chat")({
                 sendReasoning: true,
               });
 
-              writer.merge(chatStream);
+              // @mastra/ai-sdk types its v7 stream with an older bundled copy of the AI SDK
+              // types, so the chunk type has to be bridged to the installed `ai` version.
+              writer.merge(
+                chatStream as ReadableStream<InferUIMessageChunk<MyUIMessage>>,
+              );
             } catch (error) {
               console.error("Chat stream error:", error);
               throw error;

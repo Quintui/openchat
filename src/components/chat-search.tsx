@@ -15,7 +15,9 @@ import { groupByDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { threadsQueryOptions } from "@/server/threads";
 
-export type ChatSearchProps = ComponentProps<typeof Dialog>;
+export type ChatSearchProps = Omit<ComponentProps<typeof Dialog>, "onOpenChange"> & {
+  onOpenChange?: (open: boolean) => void;
+};
 
 export function ChatSearch({ onOpenChange, ...props }: ChatSearchProps) {
   const navigate = useNavigate();
