@@ -16,7 +16,7 @@ export const getThreadMessages = createServerFn({ method: "GET", strict: { outpu
   .handler(async ({ data }) => {
     const memory = await mastra.getAgent("assistant").getMemory();
 
-    if (!memory) {
+    if (!memory || !(await memory.getThreadById({ threadId: data.threadId }))) {
       return { messages: [] };
     }
 
