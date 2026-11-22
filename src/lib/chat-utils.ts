@@ -28,3 +28,27 @@ function findLast<T>(arr: T[], predicate: (item: T) => boolean): T | undefined {
   }
   return undefined;
 }
+
+type Part = MyUIMessage["parts"][number];
+
+/**
+ * Claude's web search answers arrive as many text parts (one per citation),
+ * with `source-url` parts in between. Returns the text of the run of text parts
+ * starting at `index` (skipping interleaved `source-url` parts), so it renders as
+ * one response. Returns null when the part at `index` continues an earlier run.
+ */
+export function getTextRun(parts: Part[], index: number): string | null {
+  const isRunPart = (part: Part | undefined) =>
+    part?.type === "text" || part?.type === "source-url";
+
+  for (let i = index - 1; i >= 0 && isRunPart(parts[i]); i--) {
+    if (parts[i].type === "text") return null;
+  }
+
+  let text = "";
+  for (let i = index; i < parts.length && isRunPart(parts[i]); i++) {
+    const part = parts[i];
+    if (part.type === "text") text += part.text;
+  }
+  return text;
+}

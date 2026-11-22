@@ -1,9 +1,9 @@
 import type { ToolsInput } from "@mastra/core/agent";
 import { Agent } from "@mastra/core/agent";
+import { webSearchTool } from "@mastra/core/tools";
 import { Memory } from "@mastra/memory";
 import { DEFAULT_MODEL_ID } from "@/config/models";
 import { workingMemorySchema } from "@/config/working-memory";
-import { webSearchTool } from "@/mastra/tools/web-search";
 
 export const assistant = new Agent({
   id: "assistant",
@@ -27,7 +27,7 @@ When the user shares personal details, preferences, or asks you to remember some
   tools: ({ requestContext }) => {
     const isWebSearchEnabled = requestContext?.get("webSearchEnabled");
     if (isWebSearchEnabled) {
-      return { webSearch: webSearchTool };
+      return { web_search: webSearchTool };
     }
     return {} as ToolsInput;
   },

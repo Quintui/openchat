@@ -24,7 +24,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Source, SourceContent, SourceTrigger } from "@/components/ai-elements/sources";
 import { WorkingMemoryUpdate } from "@/components/ai-elements/working-memory-update";
 import { ChatPromptComposer } from "@/components/chat-prompt-composer";
-import { shouldShowLoadingShimmer } from "@/lib/chat-utils";
+import { getTextRun, shouldShowLoadingShimmer } from "@/lib/chat-utils";
 import { cloneThread, type Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
 import { CopyButton } from "./copy-button";
@@ -177,16 +177,19 @@ export function ChatInterface({
                                     <ReasoningContent>{part.text}</ReasoningContent>
                                   </Reasoning>
                                 );
-                              case "text":
+                              case "text": {
+                                const text = getTextRun(message.parts, i);
+                                if (text === null) return null;
                                 return (
                                   <MessageResponse
                                     // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
                                     key={`${message.id}-${i}`}
                                   >
-                                    {part.text}
+                                    {text}
                                   </MessageResponse>
                                 );
-                              case "tool-webSearch":
+                              }
+                              case "tool-web_search":
                                 return part.state === "output-available" ? (
                                   <div
                                     key={part.toolCallId}
@@ -197,7 +200,9 @@ export function ChatInterface({
                                         <SourceTrigger showFavicon label={index + 1} />
                                         <SourceContent
                                           title={source.title ?? source.url}
-                                          description={source.content}
+                                          description={
+                                            source.pageAge ? `Updated ${source.pageAge}` : undefined
+                                          }
                                         />
                                       </Source>
                                     ))}

@@ -43,36 +43,35 @@ export function SourceTrigger({ label, showFavicon = false, className }: SourceT
   const { href, domain } = useSourceContext();
   const labelToShow = label ?? domain.replace("www.", "");
 
+  // The preview card trigger renders an <a> itself, so it takes the link props directly.
   return (
-    <HoverCardTrigger>
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={cn(
-          "bg-muted text-muted-foreground hover:bg-muted-foreground/30 hover:text-primary inline-flex h-5 max-w-32 items-center gap-1 overflow-hidden rounded-full py-0 text-xs no-underline transition-colors duration-150",
-          showFavicon ? "pr-2 pl-1" : "px-1",
-          className,
-        )}
-      >
-        {showFavicon && (
-          <img
-            src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(href)}`}
-            alt="favicon"
-            width={14}
-            height={14}
-            className="size-3.5 rounded-full"
-          />
-        )}
-        <span className="truncate tabular-nums text-center font-normal">{labelToShow}</span>
-      </a>
+    <HoverCardTrigger
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "bg-muted text-muted-foreground hover:bg-muted-foreground/30 hover:text-primary inline-flex h-5 max-w-32 items-center gap-1 overflow-hidden rounded-full py-0 text-xs no-underline transition-colors duration-150",
+        showFavicon ? "pr-2 pl-1" : "px-1",
+        className,
+      )}
+    >
+      {showFavicon && (
+        <img
+          src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(href)}`}
+          alt="favicon"
+          width={14}
+          height={14}
+          className="size-3.5 rounded-full"
+        />
+      )}
+      <span className="truncate tabular-nums text-center font-normal">{labelToShow}</span>
     </HoverCardTrigger>
   );
 }
 
 export type SourceContentProps = {
   title: string;
-  description: string;
+  description?: string;
   className?: string;
 };
 
@@ -93,7 +92,9 @@ export function SourceContent({ title, description, className }: SourceContentPr
           <div className="text-primary truncate text-sm">{domain.replace("www.", "")}</div>
         </div>
         <div className="line-clamp-2 text-sm font-medium">{title}</div>
-        <div className="text-muted-foreground line-clamp-2 text-sm">{description}</div>
+        {description && (
+          <div className="text-muted-foreground line-clamp-2 text-sm">{description}</div>
+        )}
       </a>
     </HoverCardContent>
   );

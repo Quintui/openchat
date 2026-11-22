@@ -6,7 +6,7 @@ An AI chat application built with [Mastra](https://mastra.ai), [TanStack Start](
 
 - Conversational AI assistant with working memory that persists across threads
 - Claude models via [Anthropic](https://www.anthropic.com) (switch models on the fly)
-- Web search powered by [Exa](https://exa.ai)
+- Web search powered by Claude's built-in web search tool (no extra API key needed)
 - Thread management: create, list, delete, and branch conversations
 - Dark/light theme support
 
@@ -16,7 +16,6 @@ An AI chat application built with [Mastra](https://mastra.ai), [TanStack Start](
 
 - [Bun](https://bun.sh)
 - An [Anthropic](https://console.anthropic.com) API key
-- An [Exa](https://exa.ai) API key (optional, for web search)
 
 ### Setup
 
@@ -25,11 +24,10 @@ bun install
 cp .env.example .env
 ```
 
-Fill in your API keys in `.env`:
+Fill in your API key in `.env`:
 
 ```
 ANTHROPIC_API_KEY=your-api-key
-EXA_API_KEY=your-exa-api-key
 ```
 
 ### Development
