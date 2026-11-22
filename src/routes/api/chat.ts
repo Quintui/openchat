@@ -1,7 +1,7 @@
 import { handleChatStream } from "@mastra/ai-sdk";
 import { RequestContext } from "@mastra/core/request-context";
 import { createFileRoute } from "@tanstack/react-router";
-import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse, type InferUIMessageChunk } from "ai";
 import {
   generateThreadTitle,
   handleRegeneration,
@@ -9,7 +9,7 @@ import {
   resolveThread,
 } from "@/lib/chat-helpers";
 import { mastra } from "@/mastra";
-import type { MyUIMessage } from "@/types/ui-message";
+import type { AgentUIMessage, MyUIMessage } from "@/types/ui-message";
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -28,42 +28,25 @@ export const Route = createFileRoute("/api/chat")({
               const memory = await agent.getMemory();
 
               if (!memory) {
-                throw new Error(
-                  "Memory is not configured for the assistant agent",
-                );
+                throw new Error("Memory is not configured for the assistant agent");
               }
 
-              const { thread, isNew } = await resolveThread(
-                memory,
-                params.threadId,
-                writer,
-              );
+              const { thread, isNew } = await resolveThread(memory, params.threadId, writer);
 
-              if (
-                params.trigger === "regenerate-message" &&
-                params.regenerateMessageId
-              ) {
-                await handleRegeneration(
-                  memory,
-                  params.threadId,
-                  params.regenerateMessageId,
-                );
+              if (params.trigger === "regenerate-message" && params.regenerateMessageId) {
+                await handleRegeneration(memory, params.threadId, params.regenerateMessageId);
               }
 
-              const chatStream = await handleChatStream<MyUIMessage>({
+              const chatStream = await handleChatStream<AgentUIMessage>({
                 mastra,
                 agentId: "assistant",
+                version: "v7",
                 params: {
                   onFinish: async ({ text }) => {
                     if (!isNew) return;
 
                     try {
-                      await generateThreadTitle(
-                        memory,
-                        params.threadId,
-                        text,
-                        writer,
-                      );
+                      await generateThreadTitle(memory, params.threadId, text, writer);
                     } catch (error) {
                       console.error("Failed to generate thread title:", error);
                     }
@@ -79,7 +62,9 @@ export const Route = createFileRoute("/api/chat")({
                 sendReasoning: true,
               });
 
-              writer.merge(chatStream);
+              // @mastra/ai-sdk types its v7 stream with an older bundled copy of the AI SDK
+              // types, so the chunk type has to be bridged to the installed `ai` version.
+              writer.merge(chatStream as ReadableStream<InferUIMessageChunk<MyUIMessage>>);
             } catch (error) {
               console.error("Chat stream error:", error);
               throw error;

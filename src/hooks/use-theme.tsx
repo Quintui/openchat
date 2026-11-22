@@ -64,46 +64,43 @@ const Theme = ({
   const [theme, setThemeState] = React.useState(() => getTheme(storageKey, defaultTheme));
   const attrs = !value ? themes : Object.values(value);
 
-  const applyTheme = React.useCallback(
-    (theme: string | undefined) => {
-      let resolved = theme;
-      if (!resolved) return;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: applyTheme reads only the initial provider config, as upstream next-themes does
+  const applyTheme = React.useCallback((theme: string | undefined) => {
+    let resolved = theme;
+    if (!resolved) return;
 
-      if (theme === "system" && enableSystem) {
-        resolved = getSystemTheme();
-      }
+    if (theme === "system" && enableSystem) {
+      resolved = getSystemTheme();
+    }
 
-      const name = value ? value[resolved] : resolved;
-      const enable = disableTransitionOnChange ? disableAnimation() : null;
-      const d = document.documentElement;
+    const name = value ? value[resolved] : resolved;
+    const enable = disableTransitionOnChange ? disableAnimation() : null;
+    const d = document.documentElement;
 
-      const handleAttribute = (attr: Attribute) => {
-        if (attr === "class") {
-          d.classList.remove(...attrs);
-          if (name) d.classList.add(name);
-        } else if (attr.startsWith("data-")) {
-          if (name) {
-            d.setAttribute(attr, name);
-          } else {
-            d.removeAttribute(attr);
-          }
+    const handleAttribute = (attr: Attribute) => {
+      if (attr === "class") {
+        d.classList.remove(...attrs);
+        if (name) d.classList.add(name);
+      } else if (attr.startsWith("data-")) {
+        if (name) {
+          d.setAttribute(attr, name);
+        } else {
+          d.removeAttribute(attr);
         }
-      };
-
-      if (Array.isArray(attribute)) attribute.forEach(handleAttribute);
-      else handleAttribute(attribute);
-
-      if (enableColorScheme) {
-        const fallback = colorSchemes.includes(defaultTheme) ? defaultTheme : null;
-        const colorScheme = colorSchemes.includes(resolved) ? resolved : fallback;
-        d.style.colorScheme = colorScheme as string;
       }
+    };
 
-      enable?.();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+    if (Array.isArray(attribute)) attribute.forEach(handleAttribute);
+    else handleAttribute(attribute);
+
+    if (enableColorScheme) {
+      const fallback = colorSchemes.includes(defaultTheme) ? defaultTheme : null;
+      const colorScheme = colorSchemes.includes(resolved) ? resolved : fallback;
+      d.style.colorScheme = colorScheme as string;
+    }
+
+    enable?.();
+  }, []);
 
   const setTheme = React.useCallback(
     (value: React.SetStateAction<string>) => {
@@ -135,6 +132,7 @@ const Theme = ({
     return () => media.removeEventListener("change", handleMediaQuery);
   }, [handleMediaQuery]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only re-subscribe when setTheme changes, as upstream next-themes does
   React.useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key !== storageKey) return;
@@ -144,13 +142,11 @@ const Theme = ({
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setTheme]);
 
   React.useEffect(() => {
     applyTheme(forcedTheme ?? theme);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forcedTheme, theme]);
+  }, [applyTheme, forcedTheme, theme]);
 
   const providerValue = React.useMemo(
     () => ({
@@ -209,6 +205,7 @@ const ThemeScript = React.memo(
       <script
         suppressHydrationWarning
         nonce={typeof window === "undefined" ? nonce : ""}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: inline pre-hydration script built from our own function and JSON-encoded config, prevents theme flash
         dangerouslySetInnerHTML={{
           __html: `(${script.toString()})(${scriptArgs})`,
         }}
@@ -252,21 +249,20 @@ const getSystemTheme = (e?: MediaQueryList | MediaQueryListEvent) => {
   return isDark ? "dark" : "light";
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const script: (...args: any[]) => void = (
-  attribute,
-  storageKey,
-  defaultTheme,
-  forcedTheme,
-  themes,
-  value,
-  enableSystem,
-  enableColorScheme,
+export const script = (
+  attribute: string,
+  storageKey: string,
+  defaultTheme: string,
+  forcedTheme: string | undefined,
+  themes: string[],
+  value: ValueObject | undefined,
+  enableSystem: boolean,
+  enableColorScheme: boolean,
 ) => {
   const el = document.documentElement;
   const systemThemes = ["light", "dark"];
   const isClass = attribute === "class";
-  const classes = isClass && value ? themes.map((t: string | number) => value[t] || t) : themes;
+  const classes = isClass && value ? themes.map((t) => value[t] || t) : themes;
 
   function updateDOM(theme: string) {
     if (isClass) {

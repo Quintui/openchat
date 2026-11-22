@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainIcon, CheckIcon, LoaderIcon, XIcon } from "lucide-react";
+import { BrainIcon, CheckIcon, XIcon } from "lucide-react";
 import type { WorkingMemory } from "@/config/working-memory";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "./shimmer";

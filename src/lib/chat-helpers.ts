@@ -3,7 +3,7 @@ import type { UIMessageStreamWriter } from "ai";
 import { z } from "zod";
 import { DEFAULT_MODEL_ID, MODELS } from "@/config/models";
 import { mastra } from "@/mastra";
-import type { MyUIMessage } from "@/types/ui-message";
+import type { AgentUIMessage, MyUIMessage } from "@/types/ui-message";
 
 const RESOURCE_ID = "user-id"; // TODO: Replace with real auth
 
@@ -18,7 +18,7 @@ const chatRequestSchema = z.object({
 
 export type ChatRequest = {
   threadId: string;
-  messages: MyUIMessage[];
+  messages: AgentUIMessage[];
   trigger?: string;
   regenerateMessageId?: string;
   modelId: string;
@@ -32,14 +32,14 @@ export type ChatRequest = {
 export function parseChatRequest(params: unknown): ChatRequest {
   const parsed = chatRequestSchema.parse(params);
 
-  const isValidModel = MODELS.some((m) => m.id === parsed.modelId);
+  const modelId = MODELS.find((m) => m.id === parsed.modelId)?.id ?? DEFAULT_MODEL_ID;
 
   return {
     threadId: parsed.threadId,
-    messages: parsed.messages as MyUIMessage[],
+    messages: parsed.messages as AgentUIMessage[],
     trigger: parsed.trigger,
     regenerateMessageId: parsed.messageId,
-    modelId: isValidModel ? parsed.modelId! : DEFAULT_MODEL_ID,
+    modelId,
     webSearchEnabled: parsed.webSearchEnabled,
   };
 }

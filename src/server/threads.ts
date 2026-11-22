@@ -11,7 +11,7 @@ const cloneThreadSchema = z.object({
 });
 
 export const cloneThread = createServerFn({ method: "POST" })
-  .inputValidator(cloneThreadSchema)
+  .validator(cloneThreadSchema)
   .handler(async ({ data }) => {
     const memory = await mastra.getAgent("assistant").getMemory();
 
@@ -97,7 +97,7 @@ const deleteThreadSchema = z.object({
 });
 
 export const deleteThread = createServerFn({ method: "POST" })
-  .inputValidator(deleteThreadSchema)
+  .validator(deleteThreadSchema)
   .handler(async ({ data }) => {
     const memory = await mastra.getAgent("assistant").getMemory();
 

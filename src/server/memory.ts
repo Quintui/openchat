@@ -30,7 +30,7 @@ export const getWorkingMemory = createServerFn({ method: "GET" }).handler(async 
 });
 
 export const updateWorkingMemory = createServerFn({ method: "POST" })
-  .inputValidator(workingMemorySchema)
+  .validator(workingMemorySchema)
   .handler(async ({ data }) => {
     const memory = await mastra.getAgent("assistant").getMemory();
 

@@ -31,3 +31,11 @@ export type MyUIMessage = UIMessage<
     };
   }
 >;
+
+/**
+ * MyUIMessage without the `steering-message` part. @mastra/ai-sdk bundles AI SDK v7
+ * types from before that part existed, so its handlers only accept messages without it.
+ */
+export type AgentUIMessage = Omit<MyUIMessage, "parts"> & {
+  parts: Exclude<MyUIMessage["parts"][number], { type: "steering-message" }>[];
+};
