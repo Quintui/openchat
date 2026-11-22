@@ -12,9 +12,9 @@ import {
   type ChatRequest,
   generateThreadTitle,
   getAssistantMemory,
-  handleRegeneration,
   parseChatRequest,
   resolveThread,
+  truncateHistory,
 } from "@/lib/chat-helpers";
 import { mastra } from "@/mastra";
 import type { AgentUIMessage, MyUIMessage } from "@/types/ui-message";
@@ -23,9 +23,7 @@ async function streamChat(params: ChatRequest, writer: UIMessageStreamWriter<MyU
   const memory = await getAssistantMemory();
   const { thread, isNew } = await resolveThread(memory, params.threadId, writer);
 
-  if (params.trigger === "regenerate-message" && params.messageId) {
-    await handleRegeneration(memory, params.threadId, params.messageId);
-  }
+  await truncateHistory(memory, params);
 
   const requestContext = new RequestContext();
   requestContext.set("modelId", params.modelId);
