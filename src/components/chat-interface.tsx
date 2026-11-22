@@ -2,10 +2,16 @@ import { useChat } from "@ai-sdk/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { DefaultChatTransport } from "ai";
-import { AlertCircleIcon, GitBranchIcon, GlobeIcon, RefreshCcwIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  PencilIcon,
+  RefreshCcwIcon,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type * as React from "react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -30,6 +36,7 @@ import { getMessageText, getTextRun, shouldShowLoadingShimmer } from "@/lib/chat
 import { cloneThread, type Thread } from "@/server/threads";
 import type { MyUIMessage } from "@/types/ui-message";
 import { CopyButton } from "./copy-button";
+import { UserMessageEditor } from "./user-message-editor";
 
 export function ChatInterface({
   initialMessages = [],
@@ -44,6 +51,7 @@ export function ChatInterface({
   const { modelId, webSearchEnabled } = useDraftInput();
   // Edits and regenerations use the model and search setting currently selected in the composer.
   const requestBody = { modelId, webSearchEnabled };
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
   const branchMutation = useMutation({
     mutationFn: (upToMessageId: string) =>
@@ -169,84 +177,114 @@ export function ChatInterface({
                       }}
                     >
                       <Message from={message.role}>
-                        <MessageContent>
-                          {message.parts.map((part, i) => {
-                            switch (part.type) {
-                              case "reasoning":
-                                return (
-                                  <Reasoning
-                                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
-                                    key={`${message.id}-${i}`}
-                                    isStreaming={part.state === "streaming"}
-                                  >
-                                    <ReasoningTrigger />
-                                    <ReasoningContent>{part.text}</ReasoningContent>
-                                  </Reasoning>
-                                );
-                              case "text": {
-                                const text = getTextRun(message.parts, i);
-                                if (text === null) return null;
-                                return (
-                                  <MessageResponse
-                                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
-                                    key={`${message.id}-${i}`}
-                                  >
-                                    {text}
-                                  </MessageResponse>
-                                );
-                              }
-                              case "tool-web_search":
-                                if (part.state === "output-error") {
+                        {editingMessageId === message.id ? (
+                          <UserMessageEditor
+                            initialText={getMessageText(message.parts)}
+                            onCancel={() => setEditingMessageId(null)}
+                            onSend={(text) => {
+                              setEditingMessageId(null);
+                              sendMessage({ text, messageId: message.id }, { body: requestBody });
+                            }}
+                          />
+                        ) : (
+                          <MessageContent>
+                            {message.parts.map((part, i) => {
+                              switch (part.type) {
+                                case "reasoning":
                                   return (
-                                    <div
-                                      key={part.toolCallId}
-                                      className="text-muted-foreground flex items-center gap-1.5 text-sm"
+                                    <Reasoning
+                                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
+                                      key={`${message.id}-${i}`}
+                                      isStreaming={part.state === "streaming"}
                                     >
-                                      <GlobeIcon className="size-3.5" />
-                                      Search failed
-                                    </div>
+                                      <ReasoningTrigger />
+                                      <ReasoningContent>{part.text}</ReasoningContent>
+                                    </Reasoning>
+                                  );
+                                case "text": {
+                                  const text = getTextRun(message.parts, i);
+                                  if (text === null) return null;
+                                  return (
+                                    <MessageResponse
+                                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts have no id and are append-only
+                                      key={`${message.id}-${i}`}
+                                    >
+                                      {text}
+                                    </MessageResponse>
                                   );
                                 }
-                                return part.state === "output-available" ? (
-                                  <div
-                                    key={part.toolCallId}
-                                    className="not-prose mb-4 flex flex-wrap gap-2"
-                                  >
-                                    {part.output.map((source, index) => (
-                                      <Source key={source.url} href={source.url}>
-                                        <SourceTrigger showFavicon label={index + 1} />
-                                        <SourceContent
-                                          title={source.title ?? source.url}
-                                          description={
-                                            source.pageAge ? `Updated ${source.pageAge}` : undefined
-                                          }
-                                        />
-                                      </Source>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div key={part.toolCallId} className="flex items-center gap-1.5">
-                                    <GlobeIcon className="text-muted-foreground size-3.5" />
-                                    <Shimmer as="p" className="text-sm">
-                                      {`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
-                                    </Shimmer>
-                                  </div>
-                                );
-                              case "tool-updateWorkingMemory":
-                                return (
-                                  <WorkingMemoryUpdate
-                                    key={part.toolCallId}
-                                    state={part.state}
-                                    input={
-                                      part.state !== "input-streaming" ? part.input : undefined
-                                    }
-                                  />
-                                );
-                              default:
-                                return null;
-                            }
-                          })}
-                        </MessageContent>
+                                case "tool-web_search":
+                                  if (part.state === "output-error") {
+                                    return (
+                                      <div
+                                        key={part.toolCallId}
+                                        className="text-muted-foreground flex items-center gap-1.5 text-sm"
+                                      >
+                                        <GlobeIcon className="size-3.5" />
+                                        Search failed
+                                      </div>
+                                    );
+                                  }
+                                  return part.state === "output-available" ? (
+                                    <div
+                                      key={part.toolCallId}
+                                      className="not-prose mb-4 flex flex-wrap gap-2"
+                                    >
+                                      {part.output.map((source, index) => (
+                                        <Source key={source.url} href={source.url}>
+                                          <SourceTrigger showFavicon label={index + 1} />
+                                          <SourceContent
+                                            title={source.title ?? source.url}
+                                            description={
+                                              source.pageAge
+                                                ? `Updated ${source.pageAge}`
+                                                : undefined
+                                            }
+                                          />
+                                        </Source>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div
+                                      key={part.toolCallId}
+                                      className="flex items-center gap-1.5"
+                                    >
+                                      <GlobeIcon className="text-muted-foreground size-3.5" />
+                                      <Shimmer as="p" className="text-sm">
+                                        {`Searching for: ${part.state === "input-available" ? part.input.query : "..."}`}
+                                      </Shimmer>
+                                    </div>
+                                  );
+                                case "tool-updateWorkingMemory":
+                                  return (
+                                    <WorkingMemoryUpdate
+                                      key={part.toolCallId}
+                                      state={part.state}
+                                      input={
+                                        part.state !== "input-streaming" ? part.input : undefined
+                                      }
+                                    />
+                                  );
+                                default:
+                                  return null;
+                              }
+                            })}
+                          </MessageContent>
+                        )}
+                        {message.role === "user" &&
+                          !isGenerating &&
+                          editingMessageId !== message.id && (
+                            <MessageActions className="justify-end opacity-0 transition-opacity group-hover:opacity-100">
+                              <MessageAction
+                                tooltip="Edit"
+                                onClick={() => {
+                                  setEditingMessageId(message.id);
+                                }}
+                              >
+                                <PencilIcon className="size-3" />
+                              </MessageAction>
+                            </MessageActions>
+                          )}
                         {message.role === "assistant" &&
                           !(isGenerating && index === messages.length - 1) && (
                             <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100">
