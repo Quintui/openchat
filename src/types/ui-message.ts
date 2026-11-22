@@ -24,6 +24,14 @@ export type MyUIMessage = UIMessage<
         pageAge?: string | null;
       }>;
     };
+    createCanvas: {
+      input: { title: string; kind: "code" | "document"; language?: string; content: string };
+      output: { id: string };
+    };
+    updateCanvas: {
+      input: { id: string; title?: string; content: string };
+      output: { id: string };
+    };
     updateWorkingMemory: {
       input: { memory: WorkingMemory };
       output: { success: boolean };

@@ -3,6 +3,7 @@ import type { UIMessageStreamWriter } from "ai";
 import { z } from "zod";
 import { DEFAULT_MODEL_ID, MODELS } from "@/config/models";
 import { RESOURCE_ID } from "@/config/resource";
+import { getTruncationIds } from "@/lib/chat-utils";
 import { mastra } from "@/mastra";
 import type { AgentUIMessage, MyUIMessage } from "@/types/ui-message";
 
@@ -71,18 +72,28 @@ export async function resolveThread(
   return { thread: created, isNew: true };
 }
 
-/** Delete the message being regenerated and everything after it. */
-export async function handleRegeneration(
-  memory: MastraMemory,
-  threadId: string,
-  messageId: string,
-): Promise<void> {
-  const { messages } = await memory.recall({ resourceId: RESOURCE_ID, threadId });
+/**
+ * Before an edit or regenerate, delete the stored messages it replaces
+ * (see `getTruncationIds`).
+ */
+export async function truncateHistory(memory: MastraMemory, params: ChatRequest): Promise<void> {
+  if (params.trigger !== "regenerate-message" && !params.messageId) return;
 
-  const targetIdx = messages.findIndex((m) => m.id === messageId);
-  if (targetIdx === -1) return;
-
-  await memory.deleteMessages(messages.slice(targetIdx).map((m) => m.id));
+  // Without perPage, recall returns only the newest few messages, so an older turn wouldn't be found.
+  const { messages } = await memory.recall({
+    resourceId: RESOURCE_ID,
+    threadId: params.threadId,
+    perPage: false,
+  });
+  const ids = getTruncationIds(
+    messages.map((m) => m.id),
+    params.messages,
+    params.trigger,
+    params.messageId,
+  );
+  if (ids.length > 0) {
+    await memory.deleteMessages(ids);
+  }
 }
 
 /**

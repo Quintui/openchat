@@ -53,6 +53,49 @@ export function getTextRun(parts: Part[], index: number): string | null {
   return text;
 }
 
+/**
+ * Ids of stored messages to delete before an edit or regenerate is streamed, so the
+ * new message replaces the old one instead of being added after it.
+ *
+ * - Regenerate: the client list ends at the user message being answered again; delete
+ *   everything stored after it (an assistant turn can be several stored messages).
+ * - Edit (`submit-message` with the id of a user message): delete the edited message and
+ *   everything after it. If its id isn't stored, delete everything after the previous
+ *   user message.
+ */
+export function getTruncationIds(
+  storedIds: string[],
+  clientMessages: Pick<MyUIMessage, "id" | "role">[],
+  trigger: string | undefined,
+  messageId: string | undefined,
+): string[] {
+  const lastUserIndex = (before: number) => {
+    for (let i = before - 1; i >= 0; i--) {
+      if (clientMessages[i].role === "user") return i;
+    }
+    return -1;
+  };
+  const deleteAfterUser = (clientIndex: number) => {
+    if (clientIndex === -1) return storedIds;
+    const storedIndex = storedIds.indexOf(clientMessages[clientIndex].id);
+    return storedIndex === -1 ? [] : storedIds.slice(storedIndex + 1);
+  };
+
+  if (trigger === "regenerate-message") {
+    return deleteAfterUser(lastUserIndex(clientMessages.length));
+  }
+
+  if (trigger === "submit-message" && messageId) {
+    const editedIndex = clientMessages.findIndex((m) => m.id === messageId);
+    if (editedIndex === -1 || clientMessages[editedIndex].role !== "user") return [];
+    const storedIndex = storedIds.indexOf(messageId);
+    if (storedIndex !== -1) return storedIds.slice(storedIndex);
+    return deleteAfterUser(lastUserIndex(editedIndex));
+  }
+
+  return [];
+}
+
 /** The message's text as rendered: each text run joined, runs separated by newlines. */
 export function getMessageText(parts: Part[]): string {
   return parts
