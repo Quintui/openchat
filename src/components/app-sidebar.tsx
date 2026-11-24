@@ -173,12 +173,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>): React.J
                         render={<Link to="/c/$threadId" params={{ threadId: thread.id }} />}
                         isActive={thread.id === activeThreadId}
                         aria-label={thread.title ?? "Untitled chat"}
+                        className="group-has-data-[sidebar=menu-action]/menu-item:pr-14"
                       >
                         <span>{thread.title ?? "Untitled chat"}</span>
                       </SidebarMenuButton>
                       <SidebarMenuAction
                         showOnHover
-                        className="right-6"
+                        className="right-7"
                         aria-label="Branch chat"
                         onClick={(e) => {
                           e.preventDefault();
