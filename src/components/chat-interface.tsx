@@ -256,7 +256,7 @@ export function ChatInterface({
                                     return part.state === "output-available" ? (
                                       <div
                                         key={part.toolCallId}
-                                        className="not-prose mb-4 flex flex-wrap gap-2"
+                                        className="not-prose flex flex-wrap gap-2"
                                       >
                                         {part.output.map((source, index) => (
                                           <Source key={source.url} href={source.url}>
